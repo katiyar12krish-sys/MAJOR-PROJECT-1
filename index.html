@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>INTRAMOVE | Autonomous Performance Roadster & Intelligent Vehicle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" rel="stylesheet" />
+</head>
+<body class="bg-[#090a0f] text-slate-100 antialiased min-h-screen flex flex-col relative overflow-x-hidden">
+
+  <!-- Overload Alert Banner -->
+  <div id="overload-alert-banner" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-red-50 border-2 border-red-500 px-6 py-3.5 rounded-2xl hidden items-center gap-3 font-mono shadow-2xl backdrop-blur-2xl animate-bounce">
+    <span class="material-symbols-outlined text-red-600 text-2xl animate-spin">warning</span>
+    <div>
+      <div class="font-bold text-sm text-red-900">⚠️ DANGER: PAYLOAD OVERLOAD / COG UNBALANCED</div>
+      <div class="text-xs text-red-700">Total weight or quadrant load exceeds safety margins.</div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- DEDICATED MOBILE COMPANION APP SHELL (AUTO-ACTIVE ON PHONE / MOBILE) -->
+  <!-- ========================================================================= -->
+  <div id="mobile-app-shell" class="min-h-screen bg-[#f1f5f9] text-slate-900 pb-24 flex flex-col antialiased">
+    
+    <!-- 1. Mobile Top Status Bar -->
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-slate-200/90 px-4 py-3 shadow-sm flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-0.5">
+          <span class="w-1 h-5 rounded-sm bg-cyan-500 transform -skew-x-12"></span>
+          <span class="w-1 h-5 rounded-sm bg-blue-600 transform -skew-x-12"></span>
+          <span class="w-1 h-5 rounded-sm bg-amber-500 transform -skew-x-12"></span>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="font-hero-big text-xl tracking-wider text-slate-900 font-extrabold uppercase">INTRAMOVE</span>
+            <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800">MOBILE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Quick Badges: Pi Status & Battery & View Switcher -->
+      <div class="flex items-center gap-2">
+        <!-- Pi Status Badge -->
+        <div id="mobile-header-pi-badge" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-amber-50 border border-amber-300 text-amber-800 cursor-pointer shadow-sm hover:scale-105 transition-transform" title="Tap to Open Pi Settings">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+          <span>Pi Standby</span>
+        </div>
+
+        <!-- Battery Indicator -->
+        <div class="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-mono font-bold bg-slate-100 border border-slate-300 text-slate-700 shadow-sm">
+          <span class="material-symbols-outlined text-xs text-emerald-600">battery_charging_full</span>
+          <span id="mobile-header-bat-val">94%</span>
+        </div>
+
+        <!-- Switch to Desktop website button -->
+        <button id="btn-switch-to-desktop" class="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-600 shadow-sm cursor-pointer" title="Switch to Full Desktop Website View">
+          <span class="material-symbols-outlined text-sm">desktop_windows</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 2. Interactive Incoming Delivery Alert Banner (Multi-Device Notification) -->
+    <div id="mobile-incoming-banner" class="hidden mx-4 mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-950 text-white shadow-xl border border-cyan-500/40 items-start justify-between gap-3 z-40 transition-all">
+      <div class="flex items-start gap-2.5">
+        <span class="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-400 text-cyan-400 flex items-center justify-center shrink-0 mt-0.5">
+          <span class="material-symbols-outlined text-lg animate-pulse">local_shipping</span>
+        </span>
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="mobile-incoming-title" class="font-bold text-xs text-cyan-300 font-mono">📦 INCOMING AGV DELIVERY!</span>
+            <span id="mobile-incoming-badge" class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-900/60 text-cyan-200 border border-cyan-500/30">TARGET: YOU</span>
+          </div>
+          <p id="mobile-incoming-desc" class="text-[11px] text-slate-300 mt-0.5 leading-snug">Dispatched from Station A ➔ Station B (2.5kg Cargo).</p>
+        </div>
+      </div>
+      <div class="flex flex-col gap-1.5 shrink-0">
+        <button id="mobile-btn-incoming-track" class="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono font-bold text-[11px] shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer">
+          <span>Track</span>
+          <span class="material-symbols-outlined text-xs">arrow_forward</span>
+        </button>
+        <button id="mobile-btn-incoming-dismiss" class="text-[10px] font-mono text-slate-400 hover:text-white text-center cursor-pointer">
+          Dismiss
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. MAIN TAB CONTENT PANELS -->
+    <main class="flex-1 px-4 py-4 space-y-4 max-w-md mx-auto w-full">
+      
+      <!-- ==================== TAB 1: CONTROL (FRONT PAGE) ==================== -->
+      <div id="mobile-panel-control" class="space-y-4">
+        
+        <!-- MASTER ON/OFF POWER CARD -->
+        <div class="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-sm flex flex-col items-center justify-center text-center space-y-3 relative overflow-hidden">
+          <div class="absolute -top-12 -right-12 w-32 h-32 bg-cyan-100/50 rounded-full blur-2xl pointer-events-none"></div>
+
+          <div class="relative">
+            <div id="mobile-power-ring" class="w-24 h-24 rounded-full border-4 border-slate-700 flex items-center justify-center p-1 transition-all">
+              <button id="mobile-btn-master-power" class="w-full h-full rounded-full bg-slate-800 border-2 border-slate-700 text-slate-400 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 shadow-md">
+                <span id="mobile-power-icon" class="material-symbols-outlined text-3xl">power_settings_new</span>
+                <span class="text-[9px] font-mono font-bold tracking-wider uppercase">POWER</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div id="mobile-power-status-label" class="text-sm font-extrabold font-mono tracking-wider text-slate-800 uppercase">
+              AGV SYSTEM STANDBY / OFF
+            </div>
+            <div id="mobile-power-status-sub" class="text-[10px] font-mono text-slate-500 mt-0.5">
+              TAP TO POWER ON &amp; ARM DRIVETRAIN
+            </div>
+          </div>
+        </div>
+
+        <!-- POINT-TO-POINT DISPATCH CONTROLLER -->
+        <div class="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center">
+                <span class="material-symbols-outlined text-base">route</span>
+              </span>
+              <h2 class="text-sm font-bold text-slate-900 font-['DM_Sans']">Delivery Dispatch &amp; Route</h2>
+            </div>
+            <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">POINT-TO-POINT</span>
+          </div>
+
+          <!-- Origin and Destination Pickers -->
+          <div class="space-y-3">
+            <!-- Origin -->
+            <div class="space-y-1">
+              <label class="text-[10px] font-mono font-bold text-slate-500 uppercase flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Pickup Origin Point</span>
+              </label>
+              <div class="relative">
+                <select id="mobile-sel-origin" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500 shadow-sm appearance-none pr-8">
+                  <!-- Dynamically populated from stations -->
+                </select>
+                <span class="material-symbols-outlined absolute right-2.5 top-2.5 text-slate-400 pointer-events-none text-base">expand_more</span>
+              </div>
+            </div>
+
+            <!-- Arrow Divider -->
+            <div class="flex items-center justify-center -my-1">
+              <span class="w-6 h-6 rounded-full bg-slate-100 border border-slate-300 text-slate-500 flex items-center justify-center text-xs">
+                <span class="material-symbols-outlined text-xs">arrow_downward</span>
+              </span>
+            </div>
+
+            <!-- Destination -->
+            <div class="space-y-1">
+              <label class="text-[10px] font-mono font-bold text-slate-500 uppercase flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                <span>Delivery Destination Point</span>
+              </label>
+              <div class="relative">
+                <select id="mobile-sel-dest" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500 shadow-sm appearance-none pr-8">
+                  <!-- Dynamically populated from stations -->
+                </select>
+                <span class="material-symbols-outlined absolute right-2.5 top-2.5 text-slate-400 pointer-events-none text-base">expand_more</span>
+              </div>
+            </div>
+
+            <!-- Multi-Device Target & Payload Options (Grid) -->
+            <div class="grid grid-cols-2 gap-2.5 pt-1">
+              <div class="space-y-1">
+                <label class="text-[10px] font-mono font-bold text-slate-500 uppercase">Notify Phone / Device</label>
+                <div class="relative">
+                  <select id="mobile-sel-target-device" class="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-300 text-[11px] font-mono font-semibold text-slate-800 focus:outline-none focus:border-cyan-500 appearance-none pr-7">
+                    <option value="All Devices">All Devices (Broadcast)</option>
+                    <option value="Station B Terminal" selected>Station B Terminal</option>
+                    <option value="Station A Terminal">Station A Terminal</option>
+                    <option value="Station C Terminal">Station C Terminal</option>
+                    <option value="Warehouse Terminal">Warehouse Terminal</option>
+                  </select>
+                  <span class="material-symbols-outlined absolute right-1.5 top-2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+                </div>
+              </div>
+
+              <div class="space-y-1">
+                <label class="text-[10px] font-mono font-bold text-slate-500 uppercase">Cargo Payload</label>
+                <div class="relative">
+                  <select id="mobile-sel-payload" class="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-300 text-[11px] font-mono font-semibold text-slate-800 focus:outline-none focus:border-cyan-500 appearance-none pr-7">
+                    <option value="1.0">1.0 KG (Light Box)</option>
+                    <option value="2.5" selected>2.5 KG (Standard)</option>
+                    <option value="4.0">4.0 KG (Heavy Parcel)</option>
+                    <option value="5.0">5.0 KG (Max Payload)</option>
+                  </select>
+                  <span class="material-symbols-outlined absolute right-1.5 top-2 text-slate-400 pointer-events-none text-sm">expand_more</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Big Action Button -->
+            <button id="mobile-btn-dispatch" class="w-full py-3 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-mono font-bold text-xs tracking-wider uppercase shadow-md shadow-cyan-600/25 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer">
+              <span class="material-symbols-outlined text-base">send</span>
+              <span>DISPATCH AUTONOMOUS AGV</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- QUICK TELEMETRY & HARDWARE STRIP -->
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-0.5">
+            <div class="text-[9px] font-mono text-slate-500 font-bold uppercase">TRACTION</div>
+            <div class="text-sm font-extrabold text-cyan-700 font-['DM_Sans']">6WD AWD</div>
+            <p class="text-[9px] text-slate-400 font-mono">6× DC 12V</p>
+          </div>
+          <div class="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-0.5">
+            <div class="text-[9px] font-mono text-slate-500 font-bold uppercase">LIDAR RATE</div>
+            <div class="text-sm font-extrabold text-emerald-700 font-['DM_Sans']">60 Hz</div>
+            <p class="text-[9px] text-slate-400 font-mono">64 Zones</p>
+          </div>
+          <div class="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-0.5">
+            <div class="text-[9px] font-mono text-slate-500 font-bold uppercase">IMU CHASSIS</div>
+            <div class="text-sm font-extrabold text-slate-800 font-['DM_Sans']">+0.3°</div>
+            <p class="text-[9px] text-slate-400 font-mono">MPU6050 OK</p>
+          </div>
+        </div>
+
+        <!-- Quick Test & Emergency Controls -->
+        <div class="flex items-center gap-2 pt-1">
+          <button id="mobile-btn-simulate-order" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-sm text-cyan-600">notifications_active</span>
+            <span>Test Alert</span>
+          </button>
+          <button id="mobile-btn-estop" class="flex-1 py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-700 text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-sm">emergency</span>
+            <span>E-STOP</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- ==================== TAB 2: LIVE TRACK ==================== -->
+      <div id="mobile-panel-track" class="hidden space-y-4">
+        
+        <!-- Order Header Card -->
+        <div class="p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-ping"></span>
+              <span class="text-xs font-mono font-bold text-slate-800">ORDER <span id="mobile-track-order-id">ORD-7294</span></span>
+            </div>
+            <span id="mobile-track-status-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-600 border border-amber-500/30">
+              AGV EN ROUTE
+            </span>
+          </div>
+
+          <div id="mobile-track-route" class="text-sm font-bold font-['DM_Sans'] text-slate-900 truncate">
+            Station A (Robotics Bay) ➔ Station B (Assembly Hub)
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="space-y-1 pt-1">
+            <div class="flex items-center justify-between text-[10px] font-mono text-slate-500">
+              <span>Delivery Progress</span>
+              <span id="mobile-track-prog-pct" class="font-bold text-cyan-700">0%</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-100 border border-slate-200 overflow-hidden">
+              <div id="mobile-track-prog-bar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full transition-all duration-300" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Route Simulation Canvas -->
+        <div class="p-3 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-2">
+          <div class="flex items-center justify-between px-1">
+            <span class="text-[10px] font-mono font-bold text-slate-500 uppercase flex items-center gap-1">
+              <span class="material-symbols-outlined text-xs text-cyan-600">navigation</span>
+              <span>Live Vector Route Map</span>
+            </span>
+            <span class="text-[10px] font-mono text-slate-400">Indoor SLAM Mesh</span>
+          </div>
+          <div class="relative w-full h-44 rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden">
+            <canvas id="mobile-track-canvas" width="360" height="176" class="w-full h-full block"></canvas>
+          </div>
+        </div>
+
+        <!-- Real-Time Metrics Dials (Speed, Battery, ETA, Remaining Dist) -->
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Live Speed -->
+          <div class="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] font-mono font-bold uppercase">Current Speed</span>
+              <span class="material-symbols-outlined text-cyan-600 text-sm">speed</span>
+            </div>
+            <div id="mobile-track-speed-val" class="text-2xl font-extrabold font-mono text-slate-900">0.00 m/s</div>
+            <div class="text-[9px] font-mono text-emerald-600 font-bold">Nominal Throttle · 6WD</div>
+          </div>
+
+          <!-- Battery Percentage -->
+          <div class="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] font-mono font-bold uppercase">Battery Level</span>
+              <span class="material-symbols-outlined text-emerald-600 text-sm">battery_charging_full</span>
+            </div>
+            <div id="mobile-track-bat-val" class="text-2xl font-extrabold font-mono text-emerald-700">94%</div>
+            <div class="text-[9px] font-mono text-slate-500">25.4V Lithium Pack</div>
+          </div>
+
+          <!-- ETA Countdown -->
+          <div class="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] font-mono font-bold uppercase">ETA Arrival</span>
+              <span class="material-symbols-outlined text-amber-600 text-sm">schedule</span>
+            </div>
+            <div id="mobile-track-eta-val" class="text-2xl font-extrabold font-mono text-slate-900">0s</div>
+            <div class="text-[9px] font-mono text-slate-500">Estimated Transit</div>
+          </div>
+
+          <!-- Remaining Distance -->
+          <div class="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm space-y-1">
+            <div class="flex items-center justify-between text-slate-400 text-xs">
+              <span class="text-[10px] font-mono font-bold uppercase">Distance Left</span>
+              <span class="material-symbols-outlined text-blue-600 text-sm">straighten</span>
+            </div>
+            <div id="mobile-track-dist-val" class="text-2xl font-extrabold font-mono text-slate-900">0.0m</div>
+            <div class="text-[9px] font-mono text-slate-500">Cargo: <span id="mobile-track-cargo-val">2.5 kg</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ==================== TAB 3: MOBILE MAPPING ==================== -->
+      <div id="mobile-panel-map" class="hidden space-y-4">
+        
+        <!-- Mobile Mapping Top Controls -->
+        <div class="p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-cyan-600 animate-pulse"></span>
+              <h2 class="text-sm font-bold text-slate-900 font-['DM_Sans']">Mobile LiDAR SLAM Mapping</h2>
+            </div>
+            <button id="mobile-btn-toggle-scan" class="px-3 py-1 rounded-xl bg-cyan-50 border border-cyan-300 text-cyan-800 text-[10px] font-mono font-bold hover:bg-cyan-100 transition-colors cursor-pointer">
+              Scan Active (60Hz)
+            </button>
+          </div>
+
+          <!-- Radar Canvas Viewport -->
+          <div class="relative w-full h-56 rounded-2xl bg-[#0a0f1d] border border-slate-800 overflow-hidden shadow-inner flex items-center justify-center">
+            <canvas id="mobile-slam-canvas" width="360" height="224" class="w-full h-full block"></canvas>
+            <div class="absolute top-2 left-2 text-[9px] font-mono text-cyan-400 bg-black/60 px-2 py-0.5 rounded backdrop-blur">
+              VL53L5CX 64-ZONE ToF
+            </div>
+            <div id="mobile-map-coord-val" class="absolute bottom-2 left-2 text-[9px] font-mono text-slate-300 bg-black/60 px-2 py-0.5 rounded backdrop-blur">
+              X: 3.0m, Y: 16.0m
+            </div>
+          </div>
+
+          <!-- Mark & Save Station Button -->
+          <button id="mobile-btn-save-station" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-sm">add_location_alt</span>
+            <span>Mark &amp; Save Station at Current Position</span>
+          </button>
+        </div>
+
+        <!-- Touch Drive D-Pad Controls -->
+        <div class="p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm flex flex-col items-center space-y-2">
+          <div class="text-[10px] font-mono text-slate-500 font-bold uppercase">Manual Drive Controller (Touch D-Pad)</div>
+          
+          <div class="w-44 h-44 relative flex items-center justify-center select-none touch-none">
+            <!-- Forward -->
+            <button id="mobile-dpad-fwd" class="absolute top-0 w-12 h-12 rounded-xl bg-slate-100 active:bg-cyan-500 active:text-white border border-slate-300 text-slate-700 flex items-center justify-center shadow-sm cursor-pointer">
+              <span class="material-symbols-outlined text-2xl">arrow_upward</span>
+            </button>
+
+            <!-- Left -->
+            <button id="mobile-dpad-left" class="absolute left-0 w-12 h-12 rounded-xl bg-slate-100 active:bg-cyan-500 active:text-white border border-slate-300 text-slate-700 flex items-center justify-center shadow-sm cursor-pointer">
+              <span class="material-symbols-outlined text-2xl">arrow_back</span>
+            </button>
+
+            <!-- Stop (Center) -->
+            <button id="mobile-dpad-stop" class="w-12 h-12 rounded-full bg-rose-50 active:bg-rose-500 active:text-white border border-rose-300 text-rose-700 flex items-center justify-center shadow-sm font-bold text-xs font-mono cursor-pointer">
+              STOP
+            </button>
+
+            <!-- Right -->
+            <button id="mobile-dpad-right" class="absolute right-0 w-12 h-12 rounded-xl bg-slate-100 active:bg-cyan-500 active:text-white border border-slate-300 text-slate-700 flex items-center justify-center shadow-sm cursor-pointer">
+              <span class="material-symbols-outlined text-2xl">arrow_forward</span>
+            </button>
+
+            <!-- Reverse -->
+            <button id="mobile-dpad-rev" class="absolute bottom-0 w-12 h-12 rounded-xl bg-slate-100 active:bg-cyan-500 active:text-white border border-slate-300 text-slate-700 flex items-center justify-center shadow-sm cursor-pointer">
+              <span class="material-symbols-outlined text-2xl">arrow_downward</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Link to Advanced 3D Studio -->
+        <a href="/slam-mapping.html" class="block p-3 rounded-2xl bg-cyan-50 border border-cyan-200 text-cyan-800 text-center text-xs font-mono font-bold hover:bg-cyan-100 transition-colors shadow-sm">
+          <span>🚀 Open Advanced 3D RViz Studio (Full View)</span>
+        </a>
+
+      </div>
+
+      <!-- ==================== TAB 4: SETTINGS ==================== -->
+      <div id="mobile-panel-settings" class="hidden space-y-4">
+        
+        <!-- Raspberry Pi Configuration Card -->
+        <div class="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
+                <span class="material-symbols-outlined text-base">developer_board</span>
+              </span>
+              <h2 class="text-sm font-bold text-slate-900 font-['DM_Sans']">Raspberry Pi Connection</h2>
+            </div>
+            <div id="mobile-pi-indicator" class="w-3 h-3 rounded-full bg-amber-500"></div>
+          </div>
+
+          <div id="mobile-pi-status-text" class="text-xs font-mono text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            Standby / Local Simulator Mode
+          </div>
+
+          <div class="space-y-3">
+            <div class="space-y-1">
+              <label class="text-[10px] font-mono font-bold text-slate-500 uppercase">Raspberry Pi IP Address</label>
+              <input type="text" id="mobile-input-pi-ip" value="192.168.1.100" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500" placeholder="192.168.1.100" />
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-[10px] font-mono font-bold text-slate-500 uppercase">WebSocket / Telemetry Port</label>
+              <input type="text" id="mobile-input-pi-port" value="8765" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500" placeholder="8765" />
+            </div>
+
+            <button id="mobile-btn-connect-pi" class="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono font-bold text-xs shadow-md active:scale-95 transition-all cursor-pointer">
+              Connect Hardware
+            </button>
+          </div>
+        </div>
+
+        <!-- Device Identity / Terminal Setting Card -->
+        <div class="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center">
+              <span class="material-symbols-outlined text-base">phonelink</span>
+            </span>
+            <h2 class="text-sm font-bold text-slate-900 font-['DM_Sans']">This Phone's Identity</h2>
+          </div>
+          <p class="text-[11px] text-slate-500 font-mono">
+            Identifies this mobile device on the inter-phone network. Incoming orders addressed to this station will trigger an instant alert on this screen.
+          </p>
+          <div class="relative">
+            <select id="mobile-sel-device-identity" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-cyan-500 appearance-none pr-8">
+              <option value="Station B Terminal">Station B Terminal (Receiver)</option>
+              <option value="Station A Terminal">Station A Terminal (Main Dispatcher)</option>
+              <option value="Station C Terminal">Station C Terminal (Packaging)</option>
+              <option value="Warehouse Terminal">Warehouse Terminal</option>
+            </select>
+            <span class="material-symbols-outlined absolute right-2.5 top-2.5 text-slate-400 pointer-events-none text-base">expand_more</span>
+          </div>
+        </div>
+
+        <!-- Local Network Access Info -->
+        <div class="p-4 rounded-3xl bg-slate-100 border border-slate-200 text-xs font-mono text-slate-600 space-y-1.5">
+          <div class="font-bold text-slate-800 flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm text-cyan-600">wifi</span>
+            <span>Access from Other Phones:</span>
+          </div>
+          <div class="p-2 rounded bg-white border border-slate-300 font-bold text-slate-900 select-all">
+            http://10.215.209.29:5173
+          </div>
+          <p class="text-[10px] text-slate-500">
+            Open this link on any smartphone on the same Wi-Fi / hotspot to use the app simultaneously!
+          </p>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- 4. Fixed Bottom App Navigation Bar -->
+    <nav class="fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 py-2 px-3 shadow-lg flex items-center justify-around max-w-md mx-auto">
+      
+      <!-- Tab 1: Control -->
+      <button id="mobile-tab-btn-control" class="flex flex-col items-center justify-center gap-0.5 text-cyan-600 font-bold py-1 px-3 relative transition-all cursor-pointer">
+        <span class="material-symbols-outlined text-xl">tune</span>
+        <span class="text-[10px] font-mono tracking-wider">Control</span>
+        <span class="tab-indicator absolute bottom-0 w-6 h-0.5 rounded-full bg-cyan-600"></span>
+      </button>
+
+      <!-- Tab 2: Track -->
+      <button id="mobile-tab-btn-track" class="flex flex-col items-center justify-center gap-0.5 text-slate-500 py-1 px-3 relative transition-all cursor-pointer">
+        <span class="material-symbols-outlined text-xl">near_me</span>
+        <span class="text-[10px] font-mono tracking-wider">Track</span>
+        <span class="tab-indicator absolute bottom-0 w-6 h-0.5 rounded-full bg-cyan-600 opacity-0"></span>
+      </button>
+
+      <!-- Tab 3: Map -->
+      <button id="mobile-tab-btn-map" class="flex flex-col items-center justify-center gap-0.5 text-slate-500 py-1 px-3 relative transition-all cursor-pointer">
+        <span class="material-symbols-outlined text-xl">radar</span>
+        <span class="text-[10px] font-mono tracking-wider">Map</span>
+        <span class="tab-indicator absolute bottom-0 w-6 h-0.5 rounded-full bg-cyan-600 opacity-0"></span>
+      </button>
+
+      <!-- Tab 4: Settings -->
+      <button id="mobile-tab-btn-settings" class="flex flex-col items-center justify-center gap-0.5 text-slate-500 py-1 px-3 relative transition-all cursor-pointer">
+        <span class="material-symbols-outlined text-xl">settings</span>
+        <span class="text-[10px] font-mono tracking-wider">Settings</span>
+        <span class="tab-indicator absolute bottom-0 w-6 h-0.5 rounded-full bg-cyan-600 opacity-0"></span>
+      </button>
+
+    </nav>
+
+    <!-- Mobile Toast Notification -->
+    <div id="mobile-toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-slate-900 border border-slate-700 text-white text-xs font-mono shadow-2xl opacity-0 pointer-events-none transition-opacity duration-300 flex items-center gap-2 max-w-[90%] whitespace-nowrap">
+      <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+      <span id="mobile-toast-text" class="truncate">Status update</span>
+    </div>
+
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- FULL DESKTOP SHOWCASE WEBSITE (PRESERVED 100% FOR LAPTOP SCREENS) -->
+  <!-- ========================================================================= -->
+  <div id="desktop-showcase-shell" class="min-h-screen flex flex-col">
+
+  <!-- ====== NAV ====== -->
+  <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-slate-200/80 px-3 sm:px-8 py-3.5 transition-all shadow-sm">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+
+      <!-- Brand (/// INTRAMOVE with cyan/blue speed stripes) -->
+      <a href="#" class="flex items-center gap-3 group shrink-0">
+        <div class="flex items-center gap-1">
+          <span class="w-1.5 h-6 rounded-sm bg-cyan-500 transform -skew-x-12"></span>
+          <span class="w-1.5 h-6 rounded-sm bg-blue-600 transform -skew-x-12"></span>
+          <span class="w-1.5 h-6 rounded-sm bg-amber-500 transform -skew-x-12"></span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-hero-big text-2xl sm:text-3xl tracking-wider text-slate-900 font-extrabold uppercase">INTRAMOVE</span>
+            <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">AUTONOMOUS 6X</span>
+          </div>
+          <p class="text-[9px] sm:text-[10px] text-slate-500 font-mono tracking-widest uppercase">Industrial Cargo Robot Platform</p>
+        </div>
+      </a>
+
+      <!-- Desktop Nav -->
+      <nav class="hidden lg:flex items-center gap-7 text-xs font-semibold uppercase tracking-wider text-slate-600 font-mono">
+        <a href="#section-hero" class="text-cyan-600 font-bold hover:text-cyan-700 transition-colors">Home</a>
+        <a href="#section-showcase" class="hover:text-cyan-600 transition-colors">Showcase</a>
+        <a href="#section-anatomy" class="hover:text-cyan-600 transition-colors">Vehicle Anatomy</a>
+        <a href="/slam-mapping.html" class="px-3 py-1.5 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-700 hover:bg-cyan-100 hover:text-cyan-900 transition-all font-bold flex items-center gap-1.5 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+          <span>3D SLAM Mapping Studio</span>
+          <span class="material-symbols-outlined text-xs">arrow_forward</span>
+        </a>
+      </nav>
+
+      <!-- Controls -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button id="btn-switch-to-mobile" class="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-slate-800 text-[11px] sm:text-xs font-mono font-bold transition-all flex items-center gap-1.5 shadow-sm bg-cyan-50 border border-cyan-300 hover:bg-cyan-100 cursor-pointer" title="Switch to Mobile Phone Companion App View">
+          <span class="material-symbols-outlined text-sm text-cyan-700">smartphone</span>
+          <span class="hidden sm:inline">Phone App View</span>
+        </button>
+        <button id="btn-audio-toggle" class="w-8 sm:w-9 h-8 sm:h-9 rounded-xl bg-slate-100 border border-slate-200 hover:border-cyan-400 text-slate-600 hover:text-cyan-600 transition-all flex items-center justify-center shadow-sm" title="Sound Muted">
+          <span id="icon-audio" class="material-symbols-outlined text-base sm:text-lg">volume_off</span>
+        </button>
+        <button id="btn-estop" class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-white text-[11px] sm:text-xs font-mono font-bold transition-all flex items-center gap-1.5 shadow-md bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500">
+          <span class="w-2 h-2 rounded-full bg-cyan-200 animate-ping"></span>
+          <span>AUTONOMOUS ON</span>
+        </button>
+        <button id="btn-mobile-menu" class="lg:hidden w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center">
+          <span class="material-symbols-outlined text-lg">menu</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Drawer -->
+    <div id="mobile-nav-drawer" class="hidden lg:hidden border-t border-slate-200 mt-3 pt-3 pb-2 space-y-1.5 text-xs font-mono">
+      <a href="#section-hero" class="mobile-nav-link block px-3 py-2 rounded-lg bg-slate-100 text-slate-900 font-semibold">Home</a>
+      <a href="#section-showcase" class="mobile-nav-link block px-3 py-2 rounded-lg bg-white text-slate-700 hover:text-cyan-600 font-semibold">Cinematic Showcase</a>
+      <a href="#section-anatomy" class="mobile-nav-link block px-3 py-2 rounded-lg bg-white text-slate-700 hover:text-cyan-600 font-semibold">Vehicle Anatomy &amp; Components</a>
+      <a href="/slam-mapping.html" class="mobile-nav-link block px-3 py-2 rounded-lg bg-cyan-50 text-cyan-800 font-bold flex items-center justify-between">
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>3D LiDAR Mapping Studio</span>
+        <span class="material-symbols-outlined text-xs">arrow_forward</span>
+      </a>
+      <button id="btn-switch-to-mobile-drawer" class="w-full text-left px-3 py-2 rounded-lg bg-cyan-100 text-cyan-900 font-bold flex items-center justify-between">
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">smartphone</span>Launch Phone App View</span>
+        <span class="material-symbols-outlined text-xs">arrow_forward</span>
+      </button>
+    </div>
+  </header>
+  <!-- Interactive Ambient Cursor Glow Dot -->
+  <div id="cursor-glow-dot"></div>
+
+  <!-- ====== HERO: BRIGHT MODERN SHOWROOM STAGE ====== -->
+  <section id="section-hero" class="relative overflow-hidden bg-slate-100/70 pt-4 sm:pt-6 pb-8 sm:pb-12 border-b border-slate-200">
+
+    <!-- Top Ambient Soft Lighting -->
+    <div class="spotlight-beam-white"></div>
+    <div class="spotlight-beam-red"></div>
+
+    <!-- Background Subtle Glow -->
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-100/35 via-slate-100/50 to-slate-200/35 pointer-events-none"></div>
+
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-8 z-10 flex flex-col">
+
+      <!-- Stage Showroom Arena (Clean, Crisp, Light Modern Studio) -->
+      <div id="hero-stage-arena" class="relative w-full rounded-3xl overflow-hidden bg-gradient-to-b from-white via-slate-50 to-[#eaf0f7] border border-slate-200/90 shadow-[0_20px_50px_rgba(15,23,42,0.06)] min-h-[520px] sm:min-h-[580px] lg:min-h-[640px] flex flex-col justify-between p-5 sm:p-8">
+
+        <!-- Showroom Ambient Ground Sheen -->
+        <div class="absolute bottom-0 inset-x-0 h-48 bg-gradient-to-t from-cyan-100/40 via-slate-200/20 to-transparent pointer-events-none z-0"></div>
+
+        <!-- Ambient Floating Cyber Dust Particles -->
+        <div class="cyber-particle w-2 h-2 bg-cyan-400/40 blur-[1px] top-12 left-16" style="animation-delay: 0.5s;"></div>
+        <div class="cyber-particle w-1.5 h-1.5 bg-amber-400/35 blur-[1px] top-24 right-28" style="animation-delay: 1.8s;"></div>
+        <div class="cyber-particle w-2.5 h-2.5 bg-blue-400/30 blur-[1px] bottom-16 left-32" style="animation-delay: 3s;"></div>
+        <div class="cyber-particle w-2 h-2 bg-emerald-400/35 blur-[1px] bottom-20 right-20" style="animation-delay: 2.2s;"></div>
+
+        <!-- GIANT BACKDROP TYPOGRAPHY: INTRAMOVE (Alphabets closer together, fully visible, bold) -->
+        <div id="hero-giant-letters" class="absolute top-8 sm:top-10 lg:top-12 inset-x-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-visible transition-transform duration-300 ease-out px-4">
+          <div class="font-hero-big uppercase font-extrabold text-[15vw] sm:text-[13.5vw] lg:text-[11vw] xl:text-[145px] tracking-tight leading-none text-slate-900/80 flex items-center justify-center gap-0.5 sm:gap-1 md:gap-1.5 w-full">
+            <span>I</span>
+            <span>N</span>
+            <span>T</span>
+            <span>R</span>
+            <span>A</span>
+            <span>M</span>
+            <span class="text-slate-900/80">O</span>
+            <span>V</span>
+            <span>E</span>
+          </div>
+        </div>
+
+        <!-- Top Row Metadata Pill -->
+        <div class="relative z-20 flex items-center justify-between w-full">
+          <div class="flex items-center gap-1.5 bg-white/85 border border-slate-200/90 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-sm backdrop-blur-sm hover:border-cyan-400/60 transition-colors">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
+            <span class="text-[10px] sm:text-[11px] font-mono font-bold tracking-wider text-slate-800 uppercase">INTRAMOVE CARGO-SERIES // 6X</span>
+          </div>
+          <div class="text-[9.5px] sm:text-[10px] font-mono text-slate-600 tracking-wider bg-white/80 border border-slate-200/80 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-sm">
+            ALL-TERRAIN 6WD · 5 KG PAYLOAD
+          </div>
+        </div>
+
+        <!-- Left Info & CTA Button (Positioned at bottom-left floor, no overlap with letters) -->
+        <div class="absolute bottom-6 sm:bottom-8 left-6 sm:left-10 z-20 max-w-[210px] sm:max-w-[250px] pointer-events-auto hidden md:block">
+          <p class="text-[11px] sm:text-xs text-slate-600 font-medium leading-relaxed drop-shadow-sm mb-3">
+            Step into the future with an autonomous AGV that blends 60Hz LiDAR perception, intelligent navigation, and 5kg cargo delivery.
+          </p>
+          <a href="#section-showcase" class="inline-flex items-center gap-2 px-4 sm:px-5 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-md shadow-cyan-600/25 transition-all hover:scale-105 active:scale-95">
+            <span>Explore</span>
+            <span class="material-symbols-outlined text-sm">north_east</span>
+          </a>
+        </div>
+
+        <!-- BOTTOM STAGE: GROUNDED VEHICLE (RESTING FIRMLY ON THE FLOOR) -->
+        <div class="relative z-10 mt-auto pt-6 flex flex-col items-center justify-end w-full">
+
+          <div class="relative w-full max-w-lg sm:max-w-xl lg:max-w-2xl xl:max-w-[700px] flex flex-col items-center cursor-pointer group pb-1" id="hero-car-interactive" title="Click to Inspect / Scan Sensors">
+
+            <div class="relative w-full transition-transform duration-300 ease-out" id="hero-car-body">
+
+              <!-- Contact Shadows Right Under Wheels (Tire Ground Contact) -->
+              <div class="absolute bottom-1 left-4 right-4 h-4 sm:h-5 bg-slate-900/35 rounded-[100%] blur-[3px] pointer-events-none z-0"></div>
+              <div class="absolute -bottom-1 left-2 right-2 h-7 sm:h-10 bg-slate-900/25 rounded-[100%] blur-md pointer-events-none z-0"></div>
+              <div class="absolute -bottom-2 left-8 right-8 h-8 sm:h-12 bg-cyan-500/15 rounded-[100%] blur-xl pointer-events-none z-0"></div>
+
+              <!-- 6 Individual Wheel Contact Spot Shadows -->
+              <div class="absolute bottom-0 left-[8%] w-14 h-2.5 bg-slate-900/50 rounded-full blur-[1px] pointer-events-none z-0"></div>
+              <div class="absolute bottom-0 left-[24%] w-14 h-2.5 bg-slate-900/50 rounded-full blur-[1px] pointer-events-none z-0"></div>
+              <div class="absolute bottom-0 left-[46%] w-16 h-3 bg-slate-900/50 rounded-full blur-[1px] pointer-events-none z-0"></div>
+              <div class="absolute bottom-0 left-[66%] w-14 h-2.5 bg-slate-900/50 rounded-full blur-[1px] pointer-events-none z-0"></div>
+              <div class="absolute bottom-0 left-[80%] w-14 h-2.5 bg-slate-900/50 rounded-full blur-[1px] pointer-events-none z-0"></div>
+
+              <!-- Car Image Grounded -->
+              <img
+                id="hero-car-img"
+                src="/intramove_hero_agv_transparent.png"
+                alt="INTRAMOVE 6-Wheeled Autonomous AGV"
+                class="relative z-10 w-full h-auto object-contain select-none pointer-events-none drop-shadow-[0_12px_24px_rgba(15,23,42,0.18)]"
+              />
+
+              <!-- Dual Headlight Forward Volumetric Beams -->
+              <div class="absolute top-[44%] left-[4%] w-28 sm:w-44 h-10 sm:h-16 bg-gradient-to-l from-amber-400/30 via-amber-200/20 to-transparent pointer-events-none rounded-full blur-md opacity-90 transform -rotate-12 z-20" style="clip-path: polygon(100% 40%, 0% 0%, 0% 100%, 100% 60%);"></div>
+              <div class="absolute top-[49%] left-[23%] w-32 sm:w-48 h-12 sm:h-18 bg-gradient-to-l from-amber-400/35 via-amber-200/20 to-transparent pointer-events-none rounded-full blur-md opacity-90 transform -rotate-8 z-20" style="clip-path: polygon(100% 40%, 0% 0%, 0% 100%, 100% 60%);"></div>
+
+              <!-- Turret Laser Scan Pulse Beam -->
+              <div class="absolute top-[5%] left-[27%] w-20 sm:w-28 h-6 sm:h-10 bg-cyan-400/40 rounded-full blur-lg pointer-events-none animate-pulse z-20"></div>
+
+              <!-- Sleek Milestone Bubble -->
+              <div id="hero-car-bubble" class="absolute -top-7 sm:-top-9 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-mono font-bold whitespace-nowrap bg-slate-900 border border-slate-700 text-white backdrop-blur-md shadow-xl flex items-center gap-1.5 opacity-0 transition-opacity duration-300 z-30">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="hero-car-bubble-text">PCA9685 6-WHEEL DRIVE ARMED ⚡</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+
+      </div>
+
+    </div>
+  </section>
+
+
+
+
+  <!-- ====== CINEMATIC SHOWCASE: AUTONOMOUS LUXURY ROADWAY ====== -->
+  <section id="section-showcase" class="relative min-h-[660px] sm:min-h-[740px] lg:min-h-[820px] w-full overflow-hidden flex flex-col justify-between p-6 sm:p-10 lg:p-14 pt-20 sm:pt-24 lg:pt-28 border-y border-slate-800 text-white bg-[#070912]">
+
+    <!-- Photographic Background: Real 6-Wheel AGV on Scenic Highway -->
+    <div class="absolute inset-0 z-0">
+      <img
+        src="/agv_luxury_showcase.jpg"
+        alt="INTRAMOVE Autonomous AGV on Roadway"
+        class="w-full h-full object-cover object-[center_60%] sm:object-center transform scale-100 transition-transform duration-1000"
+      />
+      <!-- Dramatic Atmospheric Glass & Vignette Gradients -->
+      <div class="absolute inset-0 bg-gradient-to-b from-[#070912]/80 via-transparent to-[#070912]/90"></div>
+      <div class="absolute inset-0 bg-gradient-to-r from-[#070912]/75 via-transparent to-[#070912]/50"></div>
+    </div>
+
+    <!-- Top Sub-Bar (Exact Reference Image Layout) -->
+    <div class="relative z-20 max-w-7xl w-full mx-auto flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center text-cyan-400">
+          <span class="material-symbols-outlined text-lg">electric_bolt</span>
+        </div>
+        <span class="font-hero-big text-xl sm:text-2xl tracking-wider text-white uppercase drop-shadow">INTRAMOVE SHOWCASE</span>
+      </div>
+
+      <div class="hidden sm:flex items-center gap-3 text-xs font-mono">
+        <div class="px-3.5 py-1.5 rounded-full bg-black/40 border border-white/15 backdrop-blur-md text-slate-200 flex items-center gap-1.5 shadow-sm">
+          <span>All Series</span>
+          <span class="material-symbols-outlined text-xs">expand_more</span>
+        </div>
+        <div class="px-3 py-1.5 rounded-full bg-black/40 border border-white/15 backdrop-blur-md text-slate-300 flex items-center gap-1.5">
+          <span>Search...</span>
+          <span class="material-symbols-outlined text-xs">search</span>
+        </div>
+        <div class="px-3.5 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 backdrop-blur-md text-cyan-300 font-bold">
+          6-WHEEL AWD
+        </div>
+      </div>
+    </div>
+
+    <!-- Center-Top Main Headline (Exact Typography from Reference Image) -->
+    <div class="relative z-20 max-w-7xl w-full mx-auto my-auto pt-8 sm:pt-12">
+      <div class="max-w-3xl space-y-4">
+        <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono font-bold bg-white/10 border border-white/25 backdrop-blur-md text-cyan-300 shadow-lg">
+          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+          AUTONOMOUS PERFORMANCE ROVER
+        </span>
+        <h2 class="text-4xl sm:text-5xl lg:text-6xl font-extralight font-['DM_Sans'] text-white leading-[1.15] drop-shadow-[0_4px_25px_rgba(0,0,0,0.85)]">
+          Embark On The Journey<br />
+          <span class="font-normal text-white">Of Autonomous Logistics –</span><br />
+          <span class="font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-cyan-300">Your Next-Gen AGV Awaits</span>
+        </h2>
+      </div>
+    </div>
+
+    <!-- Bottom Metrics & Floating Glass Preview Card (Exact Layout from Reference Image) -->
+    <div class="relative z-20 max-w-7xl w-full mx-auto flex flex-col md:flex-row md:items-end justify-between gap-8 pt-8">
+
+      <!-- Left Metrics (2026 / 60 Hz / 5 KG / 6-AWD) -->
+      <div class="flex items-center gap-6 sm:gap-12 font-['DM_Sans']">
+        <div>
+          <div class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight drop-shadow-md">2026</div>
+          <div class="text-[11px] font-mono text-slate-300/80 tracking-widest uppercase mt-0.5">Model Year</div>
+        </div>
+        <div class="w-px h-10 bg-white/20"></div>
+        <div>
+          <div class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight drop-shadow-md">60 Hz</div>
+          <div class="text-[11px] font-mono text-slate-300/80 tracking-widest uppercase mt-0.5">ToF LiDAR</div>
+        </div>
+        <div class="w-px h-10 bg-white/20"></div>
+        <div>
+          <div class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight drop-shadow-md">5 KG</div>
+          <div class="text-[11px] font-mono text-slate-300/80 tracking-widest uppercase mt-0.5">Payload Bed</div>
+        </div>
+        <div class="hidden sm:block w-px h-10 bg-white/20"></div>
+        <div class="hidden sm:block">
+          <div class="text-3xl sm:text-4xl font-extrabold text-cyan-300 tracking-tight drop-shadow-md">6-AWD</div>
+          <div class="text-[11px] font-mono text-slate-300/80 tracking-widest uppercase mt-0.5">Drive Matrix</div>
+        </div>
+      </div>
+
+      <!-- Center "Scroll Down" Indicator (Like Reference Image) -->
+      <div class="hidden lg:flex flex-col items-center gap-2 text-[10px] font-mono text-slate-300 uppercase tracking-widest pb-1 opacity-85">
+        <span>Scroll Down</span>
+        <div class="w-4 h-7 rounded-full border border-white/40 flex items-start justify-center p-1">
+          <div class="w-1 h-2 rounded-full bg-white animate-bounce"></div>
+        </div>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- ====== SECTION: VEHICLE ANATOMY & MULTI-ANGLE ARCHITECTURE (OPEN LUXURY SHOWROOM) ====== -->
+  <section id="section-anatomy" class="py-10 sm:py-14 px-4 sm:px-8 w-full border-t border-slate-200 bg-gradient-to-b from-[#f8fafc] via-[#f1f5f9] to-[#ffffff] relative overflow-hidden text-slate-900">
+
+    <!-- Ambient Subtle Showroom Lighting -->
+    <div class="absolute top-10 left-1/4 w-[500px] h-[500px] bg-cyan-200/25 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute top-1/2 right-10 w-[450px] h-[450px] bg-amber-200/20 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-7xl mx-auto space-y-12 sm:space-y-14 relative z-10">
+
+      <!-- Section Master Header (Clean Editorial Style) -->
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-slate-300 observe-animate">
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ea580c] animate-pulse"></span>
+            <span class="text-xs font-mono font-bold tracking-widest text-[#ea580c] uppercase">Heritage &amp; Engineering Matrix</span>
+          </div>
+          <h2 class="text-4xl sm:text-5xl font-extrabold font-['DM_Sans'] text-slate-900 tracking-tight">
+            Vehicle Anatomy.
+          </h2>
+        </div>
+        <p class="text-slate-600 text-xs sm:text-sm max-w-md font-mono leading-relaxed">
+          Comprehensive multi-angle structural analysis of the INTRAMOVE 6X chassis, embedded sensing processors, and all-wheel powertrain.
+        </p>
+      </div>
+
+      <!-- ====== ANGLE 1: ISOMETRIC MASTER PERSPECTIVE (OPEN SHOWROOM STAGE) ====== -->
+      <div class="space-y-5 observe-animate">
+        
+        <!-- Angle Header & Subtitle -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span class="inline-block px-3 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-cyan-100 text-cyan-800 border border-cyan-200 mb-1">
+              Feature // Master 3D Assembly
+            </span>
+            <h3 class="text-2xl sm:text-3xl font-extrabold font-['DM_Sans'] text-slate-900">
+              6-Wheel All-Terrain Autonomous Carrier
+            </h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono text-slate-500 font-bold bg-white border border-slate-200 px-3 py-1 rounded-full shadow-sm">
+              ANGLE 01 // ISOMETRIC 3D
+            </span>
+          </div>
+        </div>
+
+        <!-- Open Stage Layout (NO HEAVY BOXES!) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+          
+          <!-- Left: Open Vehicle Stage with Live Holographic Plinth & Laser Sweep -->
+          <div class="lg:col-span-7 relative flex items-center justify-center py-4 min-h-[280px] sm:min-h-[340px] cursor-pointer interactive-anatomy-stage group select-none">
+            
+            <!-- Floor Radar Orientation Ring -->
+            <div class="anatomy-radar-floor"></div>
+
+            <!-- Dynamic Ground Contact Shadows -->
+            <div class="anatomy-shadow-pulse absolute bottom-4 inset-x-12 h-6 bg-slate-900/25 rounded-full blur-md pointer-events-none"></div>
+            <div class="absolute bottom-3 inset-x-16 h-8 bg-cyan-500/15 rounded-full blur-xl pointer-events-none"></div>
+
+            <!-- Main Vehicle with Float & 3D Tilt -->
+            <img
+              src="/agv_angle_iso_transparent.png"
+              alt="INTRAMOVE 6X Isometric Angle"
+              class="anatomy-vehicle-float anatomy-tilt-target relative z-10 w-full max-h-[280px] sm:max-h-[340px] object-contain drop-shadow-[0_15px_30px_rgba(15,23,42,0.2)] transition-transform duration-300 group-hover:scale-105"
+            />
+          </div>
+
+          <!-- Right: Open Narrative & Specs -->
+          <div class="lg:col-span-5 space-y-4">
+            <p class="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+              Engineered for fully autonomous intralogistics. Houses a high-compute ARM64 master controller, 64-zone ToF LiDAR vision turret, 6-wheel independent torque delivery, and 5 KG payload cargo platform.
+            </p>
+
+            <div class="grid grid-cols-2 gap-3 py-1">
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-0.5">
+                <div class="text-[10px] font-mono text-slate-500 uppercase font-bold">Autonomy Level</div>
+                <div class="text-lg font-extrabold text-cyan-700 font-['DM_Sans']">Level 4 Cargo</div>
+                <p class="text-[10px] text-slate-500 font-mono">Dynamic A* path generation</p>
+              </div>
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-0.5">
+                <div class="text-[10px] font-mono text-slate-500 uppercase font-bold">Total Traction</div>
+                <div class="text-lg font-extrabold text-emerald-700 font-['DM_Sans']">6-Wheel AWD</div>
+                <p class="text-[10px] text-slate-500 font-mono">Zero-turn skid steering</p>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-3 border-t border-slate-200">
+              <div class="space-y-0.5">
+                <div class="text-xs font-mono text-cyan-700 font-extrabold">100% UNTETHERED WIRELESS</div>
+                <div class="text-[11px] font-mono text-slate-500">ROS2 + Dynamic Collision Avoidance</div>
+              </div>
+              <a href="#section-hero" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#ea580c] hover:bg-[#c2410c] text-white font-bold text-xs shadow-md transition-all hover:scale-105" title="Explore Platform">
+                <span>Explore</span>
+                <span class="material-symbols-outlined text-sm">north_east</span>
+              </a>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 4 Subsystem Cards (Crisp, Light-Themed, Interactive Hover) -->
+        <div class="space-y-2.5 pt-1">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-mono font-bold tracking-wider text-slate-800 uppercase flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-sm text-cyan-600">memory</span>
+              <span>Core Embedded Computing &amp; Motor Control Components</span>
+            </h4>
+            <span class="text-[10px] font-mono text-slate-500 font-semibold bg-white border border-slate-200 px-2 py-0.5 rounded-full">4 Subsystems</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <!-- Box 1 -->
+            <div class="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-cyan-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 space-y-2 shadow-sm group">
+              <div class="flex items-center justify-between">
+                <span class="w-8 h-8 rounded-lg bg-cyan-50 text-cyan-600 border border-cyan-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <span class="material-symbols-outlined text-base">developer_board</span>
+                </span>
+                <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800">MASTER SBC</span>
+              </div>
+              <div>
+                <h5 class="text-sm font-bold text-slate-900 font-['DM_Sans']">Raspberry Pi 4 (ARM64)</h5>
+                <div class="text-[10px] font-mono text-cyan-700 font-semibold">Quad-Core 1.5GHz · 4GB LPDDR4</div>
+              </div>
+              <p class="text-[11px] text-slate-600 leading-relaxed font-mono">
+                Master compute node running Linux, executing real-time A* pathfinding and telemetry broadcasts.
+              </p>
+            </div>
+
+            <!-- Box 2 -->
+            <div class="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-blue-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 space-y-2 shadow-sm group">
+              <div class="flex items-center justify-between">
+                <span class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <span class="material-symbols-outlined text-base">sensors</span>
+                </span>
+                <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">OPTICAL LASER</span>
+              </div>
+              <div>
+                <h5 class="text-sm font-bold text-slate-900 font-['DM_Sans']">VL53L5CX 8×8 ToF LiDAR</h5>
+                <div class="text-[10px] font-mono text-blue-700 font-semibold">64-Zone Array · 60Hz · 4.0m</div>
+              </div>
+              <p class="text-[11px] text-slate-600 leading-relaxed font-mono">
+                Direct photon flight measurement emitting multizone laser pulses to generate obstacle matrices.
+              </p>
+            </div>
+
+            <!-- Box 3 -->
+            <div class="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-amber-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 space-y-2 shadow-sm group">
+              <div class="flex items-center justify-between">
+                <span class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <span class="material-symbols-outlined text-base">tune</span>
+                </span>
+                <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">PWM DRIVER</span>
+              </div>
+              <div>
+                <h5 class="text-sm font-bold text-slate-900 font-['DM_Sans']">PCA9685 16-Ch 12-Bit</h5>
+                <div class="text-[10px] font-mono text-amber-700 font-semibold">I2C Bus · 0.02ms Micro-step</div>
+              </div>
+              <p class="text-[11px] text-slate-600 leading-relaxed font-mono">
+                Hardware PWM controller regulating throttle and torque balancing across all 6 motors.
+              </p>
+            </div>
+
+            <!-- Box 4 -->
+            <div class="p-4 rounded-xl bg-white border border-slate-200/90 hover:border-emerald-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 space-y-2 shadow-sm group">
+              <div class="flex items-center justify-between">
+                <span class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <span class="material-symbols-outlined text-base">electric_bolt</span>
+                </span>
+                <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">H-BRIDGE</span>
+              </div>
+              <div>
+                <h5 class="text-sm font-bold text-slate-900 font-['DM_Sans']">Dual L293D Power Stage</h5>
+                <div class="text-[10px] font-mono text-emerald-700 font-semibold">Dual Quad-Bridge · 1.2A Peak</div>
+              </div>
+              <p class="text-[11px] text-slate-600 leading-relaxed font-mono">
+                High-current dual H-bridge motor drivers delivering bidirectional power and skid steering.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Divider line -->
+      <div class="w-full h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent"></div>
+
+      <!-- ====== ANGLE 2: FRONT ELEVATION & PERCEPTION (OPEN STAGE) ====== -->
+      <div class="space-y-5 observe-animate">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <h3 class="text-2xl sm:text-3xl font-extrabold font-['DM_Sans'] text-slate-900">
+              Front Perception.
+            </h3>
+            <span class="inline-block px-3 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-orange-100 text-orange-800 border border-orange-200">
+              Angle // Front Elevation 02
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+          
+          <!-- Front Vehicle Stage (OPEN, NO BOX) -->
+          <div class="lg:col-span-6 relative flex items-center justify-center py-4 min-h-[260px] sm:min-h-[320px] cursor-pointer interactive-anatomy-stage group select-none">
+            
+            <!-- Ground Contact Shadow & Underglow -->
+            <div class="anatomy-shadow-pulse absolute bottom-4 inset-x-16 h-6 bg-slate-900/25 rounded-full blur-md pointer-events-none"></div>
+            <div class="absolute bottom-3 inset-x-20 h-8 bg-cyan-500/15 rounded-full blur-xl pointer-events-none"></div>
+
+            <!-- Headlight Volumetric Beams -->
+            <div class="absolute top-[48%] left-[12%] w-32 h-10 bg-gradient-to-l from-amber-400/25 via-amber-200/10 to-transparent pointer-events-none rounded-full blur-md -rotate-12"></div>
+            <div class="absolute top-[48%] right-[12%] w-32 h-10 bg-gradient-to-r from-amber-400/25 via-amber-200/10 to-transparent pointer-events-none rounded-full blur-md rotate-12"></div>
+
+            <img
+              src="/agv_angle_front_transparent.png"
+              alt="INTRAMOVE 6X Front Angle"
+              class="anatomy-vehicle-float anatomy-tilt-target relative z-10 w-full max-h-[260px] sm:max-h-[320px] object-contain drop-shadow-[0_15px_30px_rgba(15,23,42,0.2)] transition-transform duration-300 group-hover:scale-105"
+            />
+
+
+          </div>
+
+          <!-- Front Specs & Cards -->
+          <div class="lg:col-span-6 space-y-4">
+            <h4 class="text-xl sm:text-2xl font-bold font-['DM_Sans'] text-slate-900">
+              Dual Beam Optics &amp; 360° LiDAR Turret
+            </h4>
+            <p class="text-xs sm:text-sm text-slate-600 font-mono leading-relaxed">
+              The front fascia features a dedicated sensor turret elevated above the chassis line, eliminating blind spots and granting unimpeded photon reception across 180° horizontal field of view.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-cyan-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-cyan-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">radar</span>
+                  <span>Elevated LiDAR Turret</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">360° dynamic ToF sweep capturing 64 points at 60Hz.</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-indigo-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-indigo-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">hearing</span>
+                  <span>Dual Sonar Transceivers</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">42kHz pulse detection for transparent glass &amp; obstacles (&lt;10cm).</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-amber-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-amber-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">light_mode</span>
+                  <span>Twin LED Headlights</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">High-candela illumination for warehouse tunnels and night work.</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-emerald-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-emerald-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">emergency</span>
+                  <span>RGB Status Beacons</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">Active beacons: Green (nominal) &amp; Red (E-Stop/hazard).</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Divider line -->
+      <div class="w-full h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent"></div>
+
+      <!-- ====== ANGLE 3: CHASSIS & 6WD POWERTRAIN (OPEN STAGE) ====== -->
+      <div class="space-y-5 observe-animate">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <h3 class="text-2xl sm:text-3xl font-extrabold font-['DM_Sans'] text-slate-900">
+              Chassis &amp; 6WD Powertrain.
+            </h3>
+            <span class="inline-block px-3 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Angle // Side Profile 03
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+          
+          <!-- Narrative on Left -->
+          <div class="lg:col-span-5 space-y-4 order-2 lg:order-1">
+            <h4 class="text-xl sm:text-2xl font-bold font-['DM_Sans'] text-slate-900">
+              6-Wheel Independent Drive &amp; CNC Frame
+            </h4>
+            <p class="text-xs sm:text-sm text-slate-600 font-mono leading-relaxed">
+              Three motorized axles provide continuous 50:50 torque split across all six wheels. The rigid 3mm aviation aluminum base offers extreme torsional stiffness, low center of gravity, and rock-solid ground clearance.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-cyan-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-cyan-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">settings</span>
+                  <span>6× DC Geared Motors</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">12V metal gearheads delivering 51 kg·cm torque for 25° ramps.</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-amber-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-amber-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">tire_repair</span>
+                  <span>All-Terrain Lugged Tires</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">Deep tread industrial rubber for grip on wet warehouse floors.</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-indigo-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-indigo-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">screen_rotation_alt</span>
+                  <span>MPU6050 6-Axis DMP</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">Onboard gyro tracking chassis pitch &amp; roll to prevent tipping.</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-emerald-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-emerald-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">construction</span>
+                  <span>Aviation Aluminum Base</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">CNC-milled 3mm alloy plate dampening vibrations and protecting electronics.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Side Vehicle Stage (OPEN, NO BOX) on Right -->
+          <div class="lg:col-span-7 relative flex items-center justify-center py-4 min-h-[260px] sm:min-h-[320px] cursor-pointer interactive-anatomy-stage group select-none order-1 lg:order-2">
+            
+            <!-- Ground Contact Shadows -->
+            <div class="anatomy-shadow-pulse absolute bottom-4 inset-x-12 h-6 bg-slate-900/25 rounded-full blur-md pointer-events-none"></div>
+            <div class="absolute bottom-3 inset-x-16 h-8 bg-emerald-500/15 rounded-full blur-xl pointer-events-none"></div>
+
+            <img
+              src="/agv_angle_side_transparent.png"
+              alt="INTRAMOVE 6X Side Angle"
+              class="anatomy-vehicle-float anatomy-tilt-target relative z-10 w-full max-h-[260px] sm:max-h-[320px] object-contain drop-shadow-[0_15px_30px_rgba(15,23,42,0.2)] transition-transform duration-300 group-hover:scale-105"
+            />
+
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Divider line -->
+      <div class="w-full h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent"></div>
+
+      <!-- ====== ANGLE 4: REAR DECK & LOGISTICS (OPEN STAGE) ====== -->
+      <div class="space-y-5 observe-animate">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <h3 class="text-2xl sm:text-3xl font-extrabold font-['DM_Sans'] text-slate-900">
+              Rear Deck &amp; Logistics.
+            </h3>
+            <span class="inline-block px-3 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+              Angle // Rear Elevation 04
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+          
+          <!-- Rear Vehicle Stage (OPEN, NO BOX) -->
+          <div class="lg:col-span-6 relative flex items-center justify-center py-4 min-h-[260px] sm:min-h-[320px] cursor-pointer interactive-anatomy-stage group select-none">
+            
+            <!-- Ground Contact Shadow & Underglow -->
+            <div class="anatomy-shadow-pulse absolute bottom-4 inset-x-12 h-6 bg-slate-900/25 rounded-full blur-md pointer-events-none"></div>
+            <div class="absolute bottom-3 inset-x-16 h-8 bg-amber-500/15 rounded-full blur-xl pointer-events-none"></div>
+
+            <img
+              src="/agv_angle_rear_transparent.png"
+              alt="INTRAMOVE 6X Rear Deck"
+              class="anatomy-vehicle-float anatomy-tilt-target relative z-10 w-full max-h-[260px] sm:max-h-[320px] object-contain drop-shadow-[0_15px_30px_rgba(15,23,42,0.2)] transition-transform duration-300 group-hover:scale-105"
+            />
+
+
+          </div>
+
+          <!-- Rear Specs & Cards -->
+          <div class="lg:col-span-6 space-y-4">
+            <h4 class="text-xl sm:text-2xl font-bold font-['DM_Sans'] text-slate-900">
+              5.0 KG Flatbed &amp; Power Management
+            </h4>
+            <p class="text-xs sm:text-sm text-slate-600 font-mono leading-relaxed">
+              The rear flatbed features modular anchor slots designed for standard carton parcels. The lower rear apron houses dynamic brake indicators, dual tow hooks, and an instant-action physical E-Stop cutoff relay.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-cyan-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-cyan-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">inventory_2</span>
+                  <span>Reinforced Cargo Bed</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">Anti-slip deck with tie-down slots accommodating up to 5.0 kg parcels.</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-emerald-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-emerald-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">scale</span>
+                  <span>Strain Gauge Load Cells</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">Multi-zone load cells measuring cargo weight &amp; Center of Gravity.</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-amber-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-amber-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">battery_charging_full</span>
+                  <span>Dual 3S Li-Po 25.4V Pack</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">High-discharge lithium array with BMS for real-time telemetry.</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/90 hover:border-red-500 hover:shadow-md transition-all space-y-1 shadow-sm">
+                <div class="flex items-center gap-1.5 text-red-700 font-bold text-xs font-mono">
+                  <span class="material-symbols-outlined text-sm">power_settings_new</span>
+                  <span>E-Stop Hardware Cutoff</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-mono">Push button + telemetry relay for instantaneous disconnect.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ====== EDITORIAL SUMMARY QUOTE & HARDWARE PARAMETERS ====== -->
+      <div class="pt-6 border-t border-slate-300 observe-animate">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          <div class="lg:col-span-4 space-y-2">
+            <span class="text-6xl font-serif text-[#ea580c] leading-none block">“</span>
+            <h4 class="text-xl font-bold font-['DM_Sans'] text-slate-900">
+              Industrial autonomy engineered from the chassis up.
+            </h4>
+            <p class="text-xs text-slate-600 font-mono leading-relaxed">
+              INTRAMOVE combines high-rate multizone optical sensing, all-terrain six-wheel torque, and real-time obstacle avoidance into a modular, production-ready platform.
+            </p>
+          </div>
+
+          <div class="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <div class="space-y-0.5 border-l-2 border-slate-300 pl-3 bg-white/70 p-3 rounded-r-xl shadow-sm">
+              <div class="text-2xl font-extrabold text-slate-900 font-['DM_Sans']">6WD</div>
+              <div class="text-[10px] font-mono text-[#ea580c] font-bold uppercase">All-Terrain Drive</div>
+              <p class="text-[10px] text-slate-500 font-mono">6× DC 12V high-torque motors with 50:50 torque split.</p>
+            </div>
+
+            <div class="space-y-0.5 border-l-2 border-slate-300 pl-3 bg-white/70 p-3 rounded-r-xl shadow-sm">
+              <div class="text-2xl font-extrabold text-slate-900 font-['DM_Sans']">60 Hz</div>
+              <div class="text-[10px] font-mono text-[#ea580c] font-bold uppercase">LiDAR Scan Rate</div>
+              <p class="text-[10px] text-slate-500 font-mono">64 independent laser points measured dynamically.</p>
+            </div>
+
+            <div class="space-y-0.5 border-l-2 border-slate-300 pl-3 bg-white/70 p-3 rounded-r-xl shadow-sm">
+              <div class="text-2xl font-extrabold text-slate-900 font-['DM_Sans']">5.0 KG</div>
+              <div class="text-[10px] font-mono text-[#ea580c] font-bold uppercase">Rated Payload</div>
+              <p class="text-[10px] text-slate-500 font-mono">Modular cargo deck with dynamic load cells.</p>
+            </div>
+
+            <div class="space-y-0.5 border-l-2 border-slate-300 pl-3 bg-white/70 p-3 rounded-r-xl shadow-sm">
+              <div class="text-2xl font-extrabold text-slate-900 font-['DM_Sans']">ARM64</div>
+              <div class="text-[10px] font-mono text-[#ea580c] font-bold uppercase">On-Board Brain</div>
+              <p class="text-[10px] text-slate-500 font-mono">Raspberry Pi 4 executing autonomous A* navigation.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ====== FOOTER ====== -->
+  <footer class="border-t border-slate-800 py-10 px-4 sm:px-8 text-xs font-mono bg-[#07080c] text-slate-400">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1">
+          <span class="w-1 h-5 rounded-sm bg-red-600 transform -skew-x-12"></span>
+          <span class="w-1 h-5 rounded-sm bg-red-500 transform -skew-x-12"></span>
+          <span class="w-1 h-5 rounded-sm bg-red-400 transform -skew-x-12"></span>
+        </div>
+        <span class="font-hero-big text-xl tracking-wider text-white uppercase">INTRAMOVE</span>
+        <span class="text-slate-500">// Autonomous Performance Roadster</span>
+      </div>
+      <div class="text-slate-500 flex items-center gap-4">
+        <span>© 2026 INTRAMOVE Inc.</span>
+        <span>•</span>
+        <span>Vite • Three.js • GSAP • Tailwind CSS</span>
+      </div>
+    </div>
+  </footer>
+  </div> <!-- /desktop-showcase-shell -->
+
+  <script type="module" src="/src/main.js"></script>
+
+  <script>
+    // Scroll-reveal observer
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const delay = e.target.dataset.delay || 0;
+          setTimeout(() => e.target.classList.add('in-view'), +delay);
+        }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.observe-animate').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

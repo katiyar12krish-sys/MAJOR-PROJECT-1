@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>INTRAMOVE | 3D SLAM Mapping Studio & RViz Floorplan Memory</title>
+  <meta name="description" content="Dedicated 3D SLAM Mapping Studio powered by Smartelex VL53L5CX ToF LiDAR, multi-facility memory, and ROS RViz Occupancy Grid reconstruction." />
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+  <!-- Tailwind & Main CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"DM Sans"', 'sans-serif'],
+            display: ['"DM Sans"', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfeff',
+              100: '#cffafe',
+              500: '#06b6d4',
+              600: '#0891b2',
+              700: '#0e7490',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="bg-[#eef2f6] text-slate-800 font-sans antialiased min-h-screen selection:bg-cyan-600 selection:text-white">
+
+  <!-- ========================================================================= -->
+  <!-- TOP HEADER BAR (DECENT EXECUTIVE LIGHT THEME) -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-300/80 px-4 lg:px-8 py-3.5 shadow-sm transition-all">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand & Back Button -->
+      <div class="flex items-center gap-3 sm:gap-4">
+        <a href="/" class="p-2 rounded-xl bg-slate-100 hover:bg-cyan-50 text-slate-600 hover:text-cyan-700 border border-slate-300 transition-all flex items-center justify-center group shadow-sm hover-lift" title="Return to INTRAMOVE Main Page">
+          <span class="material-symbols-outlined text-lg group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
+        </a>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-cyan-600 animate-pulse"></span>
+            <span class="text-xs font-mono font-bold tracking-widest text-cyan-700 uppercase">INTRAMOVE MASTER ADMIN OS</span>
+          </div>
+          <h1 class="text-base sm:text-lg font-bold font-['DM_Sans'] text-slate-900 flex items-center gap-2">
+            Admin Panel &amp; 3D SLAM Studio
+            <span class="hidden md:inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-100/70 text-cyan-800 border border-cyan-300 font-bold">
+              Raspberry Pi 4 ARM64 · SSH Active
+            </span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Active Room / Floorplan Breadcrumb -->
+      <div class="hidden lg:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100/90 border border-slate-300 text-xs font-mono shadow-inner">
+        <span class="material-symbols-outlined text-sm text-cyan-700">terminal</span>
+        <span class="text-slate-500">Target Bridge:</span>
+        <span id="slam-active-room-title" class="text-slate-900 font-bold">pi@10.215.209.29 (SSH:22) · ~/intramove</span>
+      </div>
+
+      <!-- Hardware Connection Status & Actions -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Status Badge -->
+        <div id="slam-hw-badge" class="px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-cyan-100/80 text-cyan-900 border border-cyan-300 flex items-center gap-2 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-cyan-600 animate-pulse"></span>
+          <span>PI 4 HARDWARE ONLINE</span>
+        </div>
+
+        <!-- Connect AGV Hardware Button -->
+        <button id="slam-btn-hw-connect" class="px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition-all flex items-center gap-1.5 shadow-sm hover-lift cursor-pointer">
+          <span class="material-symbols-outlined text-sm text-cyan-700">router</span>
+          <span class="hidden sm:inline">Connect Hardware</span>
+        </button>
+
+        <!-- Save Room Quick Button -->
+        <button id="slam-btn-scroll-to-form" class="px-4 py-1.5 rounded-xl text-xs font-mono font-bold bg-cyan-600 hover:bg-cyan-500 text-white transition-all flex items-center gap-1.5 shadow-sm hover-lift cursor-pointer">
+          <span class="material-symbols-outlined text-sm">bookmark_add</span>
+          <span>Save Map Form</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- MASTER ADMIN STUDIO NAVIGATION BAR -->
+  <!-- ========================================================================= -->
+  <div class="bg-white border-b border-slate-300 px-4 lg:px-8 py-2.5 shadow-sm sticky top-[69px] z-30">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <!-- Admin Tab Buttons -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="admin-tab-btn-slam-3d" class="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-cyan-600 text-white shadow-sm flex items-center gap-1.5 transition-all cursor-pointer">
+          <span class="material-symbols-outlined text-sm">view_in_ar</span>
+          <span>3D SLAM Studio &amp; Floorplans</span>
+        </button>
+
+        <button id="admin-tab-btn-terminal-ssh" class="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+          <span class="material-symbols-outlined text-sm text-emerald-600">terminal</span>
+          <span>Pi 4 Terminal &amp; SSH Bridge</span>
+        </button>
+
+        <button id="admin-tab-btn-pi-code-editor" class="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+          <span class="material-symbols-outlined text-sm text-cyan-600">code</span>
+          <span>Pi Code Editor (~/intramove)</span>
+        </button>
+
+        <button id="admin-tab-btn-style-theme" class="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+          <span class="material-symbols-outlined text-sm text-amber-600">palette</span>
+          <span>Style &amp; Theme Customizer</span>
+        </button>
+
+        <button id="admin-tab-btn-hardware-config" class="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+          <span class="material-symbols-outlined text-sm text-blue-600">tune</span>
+          <span>Hardware Calibration</span>
+        </button>
+      </div>
+
+      <!-- Quick PowerShell Bridge Launcher Button -->
+      <a href="/#" onclick="alert('PowerShell SSH command copied to clipboard! You can also double click CONNECT_PI_POWERSHELL.bat in your project folder.'); navigator.clipboard.writeText('ssh -p 22 pi@10.215.209.29'); return false;" class="flex items-center gap-1.5 text-xs font-mono text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl border border-slate-300 transition-colors shadow-sm" title="Click to copy PowerShell SSH Command">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="font-bold text-slate-900">PowerShell SSH:</span>
+        <span class="text-cyan-700 font-bold">ssh pi@10.215.209.29</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN WORKSPACE -->
+  <!-- ========================================================================= -->
+  <main class="max-w-7xl mx-auto px-4 lg:px-8 py-6 space-y-6">
+
+    <!-- ========================================================================= -->
+    <!-- ADMIN PANE 1: 3D SLAM MAPPING STUDIO & MULTI-LOCATION MEMORY -->
+    <!-- ========================================================================= -->
+    <div id="admin-pane-slam-3d" class="space-y-6">
+
+    <!-- UPPER SECTION: RViz SLAM Viewport Canvas + Live HUD Controls -->
+    <div class="relative w-full rounded-2xl overflow-hidden border border-slate-300 bg-[#0a0f1d] shadow-xl">
+      
+      <!-- Top Control Bar Overlay (Within Canvas) -->
+      <div class="absolute top-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        
+        <!-- Left Buttons: 2D/3D Mode & Live Scan -->
+        <div class="flex items-center gap-2 pointer-events-auto">
+          <!-- 2D / 3D Toggle -->
+          <button id="slam-btn-viewmode" class="px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold bg-white/95 hover:bg-white text-slate-800 border border-slate-300 backdrop-blur-md flex items-center gap-1.5 shadow-md transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-sm text-cyan-600">crop_free</span>
+            <span>Switch to 2D RViz Ortho</span>
+          </button>
+
+          <!-- Live Scan Toggle -->
+          <button id="slam-btn-scan" class="px-4 py-1.5 rounded-xl text-xs font-mono font-bold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center gap-1.5 shadow-md transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-sm">play_arrow</span>
+            <span>Start Live Scan</span>
+          </button>
+
+          <!-- Camera Reset -->
+          <button id="slam-btn-reset" class="p-1.5 rounded-xl bg-white/95 hover:bg-white text-slate-700 border border-slate-300 backdrop-blur-md shadow-md transition-all cursor-pointer" title="Reset Camera View">
+            <span class="material-symbols-outlined text-sm">center_focus_strong</span>
+          </button>
+        </div>
+
+        <!-- Right: RViz Map Standard Color Legend -->
+        <div class="hidden sm:flex items-center gap-3 px-3.5 py-1.5 rounded-xl bg-white/95 border border-slate-300 backdrop-blur-md text-[11px] font-mono text-slate-800 shadow-md pointer-events-auto">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-sm bg-[#e2e8f0] border border-slate-400"></span>
+            <span>Free Space</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-sm bg-[#000000] border border-slate-600"></span>
+            <span>Obstacles / Walls</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-sm bg-[#0a0f1d] border border-slate-400"></span>
+            <span>Unexplored</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-1 rounded-full bg-emerald-500"></span>
+            <span>AGV Trajectory</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 3D / 2D Three.js Canvas Container (Clean Standby Grid) -->
+      <div id="slam-canvas-container" class="w-full h-[480px] sm:h-[560px] lg:h-[600px] bg-[#0a0f1d] cursor-grab active:cursor-grabbing"></div>
+
+      <!-- Bottom Canvas Footer Overlay: Live AGV Telemetry Pills -->
+      <div class="absolute bottom-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        <div class="flex flex-wrap items-center gap-2 pointer-events-auto">
+          <div class="px-3 py-1 rounded-lg bg-white/95 backdrop-blur-md border border-slate-300 text-[11px] font-mono text-slate-800 flex items-center gap-1.5 shadow-sm">
+            <span class="text-slate-500">Room Area:</span>
+            <span id="slam-room-area-val" class="text-cyan-700 font-bold">0.0 m²</span>
+          </div>
+          <div class="px-3 py-1 rounded-lg bg-white/95 backdrop-blur-md border border-slate-300 text-[11px] font-mono text-slate-800 flex items-center gap-1.5 shadow-sm">
+            <span class="text-slate-500">Grid Resolution:</span>
+            <span class="text-slate-900 font-bold">5 cm/cell</span>
+          </div>
+          <div class="px-3 py-1 rounded-lg bg-white/95 backdrop-blur-md border border-slate-300 text-[11px] font-mono text-slate-800 flex items-center gap-1.5 shadow-sm">
+            <span class="text-slate-500">Sensor:</span>
+            <span class="text-amber-700 font-bold">Smartelex VL53L5CX (45° FoV)</span>
+          </div>
+        </div>
+
+        <div class="px-3 py-1 rounded-lg bg-white/95 backdrop-blur-md border border-slate-300 text-[11px] font-mono text-slate-600 pointer-events-auto hidden md:block shadow-sm">
+          Left-Click: Rotate / Pan · Scroll: Zoom
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- INTERACTIVE WAYPOINT & MISSION PLANNER STRIP (Just below the map canvas) -->
+    <!-- ========================================================================= -->
+    <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-300/80 shadow-sm space-y-4">
+      
+      <!-- Planner Controls Row -->
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-[10px] font-mono uppercase tracking-widest text-emerald-700 font-bold">
+              Waypoint & Mission Planner
+            </span>
+          </div>
+          <h2 class="text-base sm:text-lg font-bold font-['DM_Sans'] text-slate-900 mt-0.5">
+            AGV Navigation Coordinates: Starting & Ending Point
+          </h2>
+          <p class="text-xs text-slate-500 font-mono">
+            Click an option below, then click anywhere on the 3D/2D map canvas to set coordinates.
+          </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Set Starting Point (A) -->
+          <button id="slam-btn-set-point-a" class="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-300 hover:border-emerald-400 transition-all flex items-center gap-2 shadow-sm cursor-pointer group hover-lift">
+            <span class="material-symbols-outlined text-sm text-emerald-600 group-hover:scale-110 transition-transform">pin_drop</span>
+            <span id="slam-btn-label-a">Set Starting Point (A)</span>
+          </button>
+
+          <!-- Set Ending Point (B) -->
+          <button id="slam-btn-set-point-b" class="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-300 hover:border-rose-400 transition-all flex items-center gap-2 shadow-sm cursor-pointer group hover-lift">
+            <span class="material-symbols-outlined text-sm text-rose-600 group-hover:scale-110 transition-transform">where_to_vote</span>
+            <span id="slam-btn-label-b">Set Ending Point (B)</span>
+          </button>
+
+          <!-- Reset Points -->
+          <button id="slam-btn-reset-points" class="px-3.5 py-2 rounded-xl text-xs font-mono font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-300 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer" title="Clear A and B coordinates">
+            <span class="material-symbols-outlined text-sm">restart_alt</span>
+            <span>Reset Points</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Selection Helper Banner -->
+      <div id="slam-picker-status-banner" class="px-4 py-2.5 rounded-xl bg-slate-100 border border-slate-300/80 text-xs font-mono text-slate-600 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm text-cyan-600">touch_app</span>
+          <span id="slam-picker-hint-text">Standby: Select a button above to choose Starting or Ending Point on the map.</span>
+        </div>
+        <span id="slam-picker-active-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse">
+          Click Map to Set Point
+        </span>
+      </div>
+
+      <!-- Distance & Live Mission Telemetry Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 pt-1">
+        
+        <!-- Metric 1: Distance Point A -> B -->
+        <div class="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-emerald-950 shadow-sm relative overflow-hidden">
+          <span class="text-[10px] font-mono text-emerald-700 font-bold uppercase block">Distance: Start ➔ End</span>
+          <div class="flex items-baseline gap-1 mt-1">
+            <span id="slam-metric-distance-ab" class="text-2xl font-bold font-mono text-emerald-700">--</span>
+            <span class="text-xs font-mono text-emerald-600 font-bold">meters</span>
+          </div>
+          <span class="text-[10px] font-mono text-emerald-600/80 block mt-0.5">Straight line Euclidean</span>
+        </div>
+
+        <!-- Metric 2: Total Scanning Odometry Distance Traveled -->
+        <div class="p-3.5 rounded-xl bg-cyan-50/70 border border-cyan-200 text-cyan-950 shadow-sm relative overflow-hidden">
+          <span class="text-[10px] font-mono text-cyan-700 font-bold uppercase block">Scanning Distance</span>
+          <div class="flex items-baseline gap-1 mt-1">
+            <span id="slam-metric-scanning-distance" class="text-2xl font-bold font-mono text-cyan-700">0.00</span>
+            <span class="text-xs font-mono text-cyan-600 font-bold">meters</span>
+          </div>
+          <span class="text-[10px] font-mono text-cyan-600/80 block mt-0.5">Total AGV odometry driven</span>
+        </div>
+
+        <!-- Metric 3: Point A Coordinates -->
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono text-slate-500 uppercase font-bold">Starting Point (A)</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          </div>
+          <div id="slam-coord-a-val" class="text-sm font-mono font-bold text-slate-800 mt-1">
+            X: --, Z: --
+          </div>
+          <span id="slam-coord-a-status" class="text-[10px] font-mono text-slate-500 block mt-0.5">Not placed yet</span>
+        </div>
+
+        <!-- Metric 4: Point B Coordinates -->
+        <div class="p-3.5 rounded-xl bg-rose-50/70 border border-rose-200 text-rose-950 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono text-slate-500 uppercase font-bold">Ending Point (B)</span>
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+          </div>
+          <div id="slam-coord-b-val" class="text-sm font-mono font-bold text-slate-800 mt-1">
+            X: --, Z: --
+          </div>
+          <span id="slam-coord-b-status" class="text-[10px] font-mono text-slate-500 block mt-0.5">Not placed yet</span>
+        </div>
+
+        <!-- Metric 5: Live AGV Status & Position -->
+        <div class="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-950 shadow-sm col-span-2 sm:col-span-1">
+          <span class="text-[10px] font-mono text-amber-800 uppercase font-bold block">AGV Status</span>
+          <div id="slam-agv-nav-status" class="text-xs font-mono font-bold text-amber-800 mt-1">
+            STANDBY / READY
+          </div>
+          <span id="slam-agv-pos-val" class="text-[10px] font-mono text-amber-700 block mt-0.5">X: 0.0m, Z: 0.0m</span>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 1: MAP / LOCATION INFORMATION REGISTRATION FORM -->
+    <!-- ========================================================================= -->
+    <div id="section-save-form" class="bg-white rounded-2xl p-6 sm:p-7 border border-slate-300/80 shadow-sm space-y-6 anim-card-entrance">
+      
+      <!-- Section Header -->
+      <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-cyan-100/70 text-cyan-800 border border-cyan-300 font-bold">
+              Map Registration Form
+            </span>
+            <span class="text-xs text-slate-500 font-mono">Step 1: Save Location & Room Profile</span>
+          </div>
+          <h2 class="text-xl font-bold font-['DM_Sans'] text-slate-900 mt-1">
+            Save & Register Location Profile
+          </h2>
+          <p class="text-xs text-slate-500 font-mono mt-0.5">
+            Select location category (Home, College, Industry, or Other to enter custom name), and specify the room or corridor name.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-600 animate-pulse"></span>
+          <span class="text-xs font-mono text-cyan-700 font-bold">Ready to Register</span>
+        </div>
+      </div>
+
+      <!-- Registration Form (Focused & Clean without manual dimensions/obstacles) -->
+      <form id="slam-location-reg-form" class="space-y-5" onsubmit="event.preventDefault();">
+        
+        <!-- Row 1: Location Category Selection -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+          <div>
+            <label class="block text-slate-700 font-semibold mb-1.5 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-sm text-cyan-600">domain</span>
+              <span>1. Location Category / Type</span>
+            </label>
+            <select id="form-loc-category" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 form-input-focus font-medium">
+              <option value="Home (Residence)" selected>🏠 Home (Residence)</option>
+              <option value="College (Campus)">🎓 College (Campus)</option>
+              <option value="Industry (Warehouse Bay)">🏭 Industry (Warehouse Bay)</option>
+              <option value="Other">📍 Other / Custom Location...</option>
+            </select>
+          </div>
+
+          <!-- Conditional: Custom Location Name (Visible when "Other" is selected) -->
+          <div id="form-custom-loc-container" class="hidden">
+            <label class="block text-slate-700 font-semibold mb-1.5 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-sm text-cyan-600">edit_location</span>
+              <span>Enter Custom Location Name</span>
+            </label>
+            <input type="text" id="form-custom-loc-name" placeholder="e.g. My Smart Apartment, New Research Wing..." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 form-input-focus placeholder:text-slate-400 font-medium" />
+          </div>
+        </div>
+
+        <!-- Row 2: Zone Type & Specific Room Name -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+          <div>
+            <label class="block text-slate-700 font-semibold mb-1.5 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-sm text-cyan-600">category</span>
+              <span>2. Area / Zone Category</span>
+            </label>
+            <select id="form-zone-type" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 form-input-focus font-medium">
+              <option value="Living Room" selected>🛋️ Living Room</option>
+              <option value="Bedroom">🛏️ Bedroom</option>
+              <option value="Kitchen & Dining">🍳 Kitchen & Dining</option>
+              <option value="Corridor / Hallway">🚪 Corridor / Hallway</option>
+              <option value="Balcony / Terrace">🌿 Balcony / Terrace</option>
+              <option value="Bathroom">🚿 Bathroom</option>
+              <option value="Robotics Lab / Workshop">🤖 Robotics Lab / Workshop</option>
+              <option value="Warehouse Assembly Bay">📦 Warehouse Assembly Bay</option>
+              <option value="Custom Room">🏷️ Other Custom Room</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-slate-700 font-semibold mb-1.5 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-sm text-cyan-600">badge</span>
+              <span>3. Room / Zone Specific Name</span>
+            </label>
+            <input type="text" id="form-room-name" placeholder="e.g. Living Room, Master Bedroom, Lab 302..." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 form-input-focus placeholder:text-slate-400 font-medium" required />
+          </div>
+        </div>
+
+        <!-- Row 3: Optional Navigation Notes -->
+        <div class="space-y-3 text-xs font-mono">
+          <div>
+            <label class="block text-slate-700 font-semibold mb-1.5 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-sm text-cyan-600">notes</span>
+              <span>4. Navigation Notes / Description (Optional)</span>
+            </label>
+            <textarea id="form-room-notes" rows="2" placeholder="e.g. Smooth tiled flooring, wide doorway access, charging pad on east side..." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 form-input-focus placeholder:text-slate-400 font-medium"></textarea>
+          </div>
+
+          <!-- Automated Mapping Notice Badge -->
+          <div class="p-3.5 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-900 flex items-start gap-2.5">
+            <span class="material-symbols-outlined text-cyan-700 text-base mt-0.5">sensors</span>
+            <div class="leading-relaxed">
+              <span class="font-bold">Automated SLAM Detection:</span>
+              <span>Room dimensions, total floor area ($m^2$), boundaries, and obstacles will be automatically mapped and computed in real-time by the Smartelex VL53L5CX ToF sensor during live vehicle scanning.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit Buttons Row -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200">
+          <div class="text-xs font-mono text-slate-500">
+            * All saved data permanently persists in memory and automatically appears in the vertical list below.
+          </div>
+
+          <div class="flex items-center gap-2.5">
+            <button type="reset" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-mono text-xs font-bold transition-colors cursor-pointer">
+              Clear Form
+            </button>
+            <button type="submit" id="slam-form-btn-save" class="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono font-bold text-xs shadow-md hover:shadow-cyan-600/25 transition-all flex items-center gap-2 hover-lift cursor-pointer">
+              <span class="material-symbols-outlined text-sm">bookmark_add</span>
+              <span>Save Location & Room Profile</span>
+            </button>
+          </div>
+        </div>
+      </form>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- SECTION 2: VERTICAL SAVED LOCATIONS LIST (Directly below the form) -->
+    <!-- ========================================================================= -->
+    <div id="section-saved-vertical-list" class="space-y-4 pt-1">
+      
+      <!-- Section Header -->
+      <div class="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-300/80">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
+              Multi-Location Memory Stack
+            </span>
+            <span class="text-xs text-slate-500 font-mono">Step 2: Saved Profiles (Vertical Stack)</span>
+          </div>
+          <h2 class="text-xl font-bold font-['DM_Sans'] text-slate-900 mt-1">
+            Saved Facilities & Architectural Maps
+          </h2>
+          <p class="text-xs text-slate-500 font-mono mt-0.5">
+            All registered locations are listed vertically below. Click any card to open its full map on top and inspect room details below.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span id="slam-total-facilities-badge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-cyan-50 border border-cyan-200 text-cyan-800 shadow-sm">
+            3 Facilities Saved
+          </span>
+        </div>
+      </div>
+
+      <!-- Vertical Stack of Saved Locations (Populated dynamically by slam-studio.js) -->
+      <div id="slam-vertical-locations-container" class="space-y-4">
+        <!-- Vertical location cards rendered here -->
+      </div>
+
+    </div>
+    </div> <!-- /admin-pane-slam-3d -->
+
+    <!-- ========================================================================= -->
+    <!-- ADMIN PANE 2: RASPBERRY PI 4 TERMINAL & POWERSHELL SSH BRIDGE -->
+    <!-- ========================================================================= -->
+    <div id="admin-pane-terminal-ssh" class="hidden space-y-6">
+      
+      <!-- Top Pi 4 Status & Quick Telemetry -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Pi 4 Model B Badge -->
+        <div class="p-4 rounded-2xl bg-white border border-slate-300 shadow-sm space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono text-slate-500 font-bold uppercase">Target Hardware</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          </div>
+          <div class="text-base font-extrabold text-slate-900 font-mono">Raspberry Pi 4 Model B</div>
+          <div class="text-xs font-mono text-cyan-700">ARM Cortex-A72 @ 1.5GHz (ARM64)</div>
+        </div>
+
+        <!-- SSH Session Status -->
+        <div class="p-4 rounded-2xl bg-white border border-slate-300 shadow-sm space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono text-slate-500 font-bold uppercase">SSH Connection</span>
+            <span class="text-[10px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">PORT 22</span>
+          </div>
+          <div id="admin-ssh-ip-badge" class="text-base font-extrabold text-slate-900 font-mono">pi@10.215.209.29:22</div>
+          <div class="text-xs font-mono text-slate-500">PowerShell SSH Tunnel Bridge</div>
+        </div>
+
+        <!-- CPU Core Temperature -->
+        <div class="p-4 rounded-2xl bg-white border border-slate-300 shadow-sm space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono text-slate-500 font-bold uppercase">Core Temp</span>
+            <span class="material-symbols-outlined text-amber-500 text-sm">thermostat</span>
+          </div>
+          <div class="text-base font-extrabold text-amber-600 font-mono">43.8°C Nominal</div>
+          <div class="text-xs font-mono text-slate-500">PWM Cooling Fan 45% Duty</div>
+        </div>
+
+        <!-- Memory (RAM) Usage -->
+        <div class="p-4 rounded-2xl bg-white border border-slate-300 shadow-sm space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono text-slate-500 font-bold uppercase">RAM (LPDDR4)</span>
+            <span class="material-symbols-outlined text-blue-500 text-sm">memory</span>
+          </div>
+          <div class="text-base font-extrabold text-slate-900 font-mono">1.2 GB / 4.0 GB</div>
+          <div class="text-xs font-mono text-emerald-600 font-semibold">2.8 GB Available (Nominal)</div>
+        </div>
+      </div>
+
+      <!-- PowerShell Direct Bridge Action Card -->
+      <div class="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-950 text-white border border-slate-700 shadow-xl space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-400 text-cyan-400 flex items-center justify-center font-mono font-bold text-sm">
+              PS
+            </span>
+            <div>
+              <h3 class="text-sm font-bold font-mono text-cyan-300">Windows PowerShell Direct SSH Tunnel</h3>
+              <p class="text-xs text-slate-300 font-mono">Execute terminal commands directly on Raspberry Pi 4 inside ~/intramove</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="admin-btn-copy-ps" class="px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer">
+              <span class="material-symbols-outlined text-sm">content_copy</span>
+              <span>Copy SSH Command</span>
+            </button>
+          </div>
+        </div>
+        
+        <div class="p-3 rounded-xl bg-black/60 border border-slate-700 font-mono text-xs flex items-center justify-between text-cyan-200 select-all">
+          <span id="admin-ps-cmd-display">ssh pi@10.215.209.29 -p 22</span>
+          <span class="text-[10px] font-mono text-slate-400">PowerShell Ready</span>
+        </div>
+      </div>
+
+      <!-- Interactive Terminal Emulator Container -->
+      <div class="rounded-2xl border border-slate-800 bg-[#070b14] shadow-2xl overflow-hidden flex flex-col h-[520px]">
+        <!-- Terminal Title Bar -->
+        <div class="bg-[#0f172a] px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+            </div>
+            <span class="text-xs font-mono font-bold text-slate-300 ml-2">pi@intramove-pi4: ~/intramove (bash)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">SSH: ACTIVE</span>
+            <button data-quick-cmd="clear" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:text-white text-[10px] font-mono cursor-pointer">Clear</button>
+          </div>
+        </div>
+
+        <!-- Quick Commands Bar -->
+        <div class="bg-[#0a0f1d] px-4 py-2 border-b border-slate-800/80 flex flex-wrap items-center gap-2 text-[11px] font-mono">
+          <span class="text-slate-500 text-[10px] font-bold uppercase">Quick Scripts:</span>
+          <button data-quick-cmd="i2cdetect -y 1" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 cursor-pointer">🔍 i2cdetect -y 1</button>
+          <button data-quick-cmd="python3 main_robot.py" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 cursor-pointer">▶️ python3 main_robot.py</button>
+          <button data-quick-cmd="systemctl status intramove" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 cursor-pointer">⚙️ Service Status</button>
+          <button data-quick-cmd="ls -la" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer">📁 ls -la</button>
+          <button data-quick-cmd="cat config/agv_config.json" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer">📄 View Config</button>
+          <button data-quick-cmd="vcgencmd measure_temp" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 border border-slate-700 cursor-pointer">🌡️ Temp</button>
+        </div>
+
+        <!-- Terminal Output Log -->
+        <div id="admin-terminal-body" class="flex-1 p-4 overflow-y-auto space-y-1.5 font-mono text-xs select-text">
+          <div class="text-cyan-400 font-bold">[INTRAMOVE SSH BRIDGE ACTIVE]</div>
+          <div class="text-slate-400">Linux intramove-pi4 6.1.21-v8+ #1642 SMP PREEMPT aarch64 GNU/Linux</div>
+          <div class="text-slate-400">Session authenticated: pi@10.215.209.29 (Connected via PowerShell SSH Tunnel)</div>
+          <div class="text-emerald-400 mt-2 font-bold">Hardware I2C Peripherals Verified:</div>
+          <div class="text-slate-300"> - 0x29: Smartelex VL53L5CX ToF 64-Zone LiDAR Array</div>
+          <div class="text-slate-300"> - 0x40: PCA9685 16-Channel 12-Bit PWM Drivetrain Controller</div>
+          <div class="text-slate-300"> - 0x68: MPU6050 6-Axis Digital Motion Processor (DMP)</div>
+          <div class="text-slate-400 mt-1">Type 'help' for quick commands or execute Python files directly.</div>
+        </div>
+
+        <!-- Terminal Command Input Bar -->
+        <div class="p-2.5 bg-[#0a0f1d] border-t border-slate-800 flex items-center gap-2">
+          <div class="text-emerald-400 font-mono text-xs font-bold pl-2">pi@intramove-pi4:~/intramove$</div>
+          <input type="text" id="admin-terminal-input" placeholder="Type Linux / Python command (e.g. python3 main_robot.py) and hit Enter..." class="flex-1 bg-transparent border-0 text-white font-mono text-xs focus:outline-none focus:ring-0 placeholder:text-slate-600" autocomplete="off" spellcheck="false" />
+          <button onclick="document.getElementById('admin-terminal-input').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter'}))" class="px-3 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-mono font-bold cursor-pointer">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ADMIN PANE 3: PI FILE EXPLORER & CODE DEPLOYMENT (~/intramove) -->
+    <!-- ========================================================================= -->
+    <div id="admin-pane-pi-code-editor" class="hidden space-y-6">
+      
+      <!-- Top File Header & Actions -->
+      <div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-300 shadow-sm">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>
+            <span class="text-xs font-mono font-bold text-slate-500 uppercase">Raspberry Pi Remote Directory:</span>
+            <span id="admin-editor-filepath" class="text-sm font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+              ~/intramove/main_robot.py
+            </span>
+          </div>
+          <p id="admin-editor-linecount" class="text-xs text-slate-500 font-mono mt-1">
+            68 lines · Python 3.11 · Live Sync to Pi 4
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="admin-btn-paste-code" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-mono font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-sm">content_paste</span>
+            <span>Paste Code</span>
+          </button>
+
+          <button id="admin-btn-save-code" class="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md shadow-cyan-600/20 active:scale-95 transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-sm">cloud_upload</span>
+            <span>Save &amp; Deploy to Pi</span>
+          </button>
+
+          <button id="admin-btn-run-code" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-sm">play_arrow</span>
+            <span>Run on Pi</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Grid: Left File Tree, Right Code Editor -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left: Remote File Tree Explorer -->
+        <div class="lg:col-span-4 p-4 rounded-2xl bg-slate-900 border border-slate-800 text-white shadow-xl space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div class="flex items-center gap-2 text-xs font-mono font-bold text-slate-300">
+              <span class="material-symbols-outlined text-sm text-cyan-400">folder</span>
+              <span>~/intramove (Pi 4)</span>
+            </div>
+            <button id="admin-btn-new-file" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[11px] font-mono flex items-center gap-1 cursor-pointer">
+              <span class="material-symbols-outlined text-xs">add</span>
+              <span>New File</span>
+            </button>
+          </div>
+
+          <!-- File List -->
+          <div id="admin-file-tree-container" class="space-y-1 max-h-[460px] overflow-y-auto pr-1">
+            <!-- Rendered dynamically by AdminStudioManager -->
+          </div>
+        </div>
+
+        <!-- Right: Monospace Code Editor -->
+        <div class="lg:col-span-8 rounded-2xl bg-[#090d16] border border-slate-800 shadow-xl overflow-hidden flex flex-col">
+          <div class="px-4 py-2.5 bg-[#0f172a] border-b border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              <span class="font-bold text-slate-200">Live Editor / Code Deployer</span>
+            </div>
+            <span class="text-[10px] text-slate-500">Paste code here &amp; click 'Save &amp; Deploy to Pi'</span>
+          </div>
+
+          <textarea id="admin-code-editor-textarea" rows="22" class="w-full p-4 bg-transparent text-slate-200 font-mono text-xs leading-relaxed focus:outline-none resize-none selection:bg-cyan-500 selection:text-white" spellcheck="false"></textarea>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ADMIN PANE 4: MASTER THEME & STYLE CUSTOMIZER -->
+    <!-- ========================================================================= -->
+    <div id="admin-pane-style-theme" class="hidden space-y-6">
+      <div class="p-6 rounded-2xl bg-white border border-slate-300 shadow-sm space-y-6">
+        <div class="flex items-center gap-3 pb-3 border-b border-slate-200">
+          <span class="w-10 h-10 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center">
+            <span class="material-symbols-outlined text-xl">palette</span>
+          </span>
+          <div>
+            <h3 class="text-base font-bold font-['DM_Sans'] text-slate-900">Master Theme &amp; Visual Styling</h3>
+            <p class="text-xs text-slate-500 font-mono">Customize the studio HUD, robot telemetry accent color, and showroom spotlights</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Accent Color Selection -->
+          <div class="space-y-2 font-mono text-xs">
+            <label class="block font-bold text-slate-700">Primary Brand Accent Color</label>
+            <select id="admin-theme-accent-picker" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono font-bold text-slate-800">
+              <option value="cyan" selected>High-Tech Cyan (Standard /// INTRAMOVE)</option>
+              <option value="emerald">Neon Emerald Green (Autonomous Matrix)</option>
+              <option value="orange">Sunset Racing Orange (Heritage Series)</option>
+              <option value="purple">Hyper Violet Cyber (RViz Night Ops)</option>
+            </select>
+            <p class="text-[11px] text-slate-500">Updates buttons, lasers, and HUD highlights everywhere.</p>
+          </div>
+
+          <!-- Ambient Glow Toggle -->
+          <div class="space-y-2 font-mono text-xs">
+            <label class="block font-bold text-slate-700">Cyber Showroom Ambient Lighting</label>
+            <div class="flex items-center gap-3 pt-2">
+              <input type="checkbox" id="admin-theme-glow-toggle" checked class="w-4 h-4 rounded text-cyan-600 focus:ring-cyan-500" />
+              <span class="text-slate-800 font-semibold">Enable Volumetric Spotlights &amp; Radar Floor Ground Sheen</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 flex justify-end">
+          <button id="admin-btn-apply-theme" class="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono font-bold text-xs shadow-md transition-all cursor-pointer">
+            Save &amp; Apply Styles Everywhere
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- ADMIN PANE 5: AGV EMBEDDED HARDWARE PARAMETER CALIBRATION -->
+    <!-- ========================================================================= -->
+    <div id="admin-pane-hardware-config" class="hidden space-y-6">
+      <div class="p-6 rounded-2xl bg-white border border-slate-300 shadow-sm space-y-6">
+        <div class="flex items-center gap-3 pb-3 border-b border-slate-200">
+          <span class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
+            <span class="material-symbols-outlined text-xl">tune</span>
+          </span>
+          <div>
+            <h3 class="text-base font-bold font-['DM_Sans'] text-slate-900">AGV Embedded Hardware Calibration</h3>
+            <p class="text-xs text-slate-500 font-mono">Fine-tune PCA9685 PWM, VL53L5CX ToF LiDAR distance envelope, and emergency limits</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-mono text-xs">
+          <div class="space-y-1">
+            <label class="block font-bold text-slate-700">Nominal Speed (m/s)</label>
+            <input type="number" step="0.05" id="hw-input-nominal-speed" value="1.35" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 font-bold" />
+          </div>
+          <div class="space-y-1">
+            <label class="block font-bold text-slate-700">Max Speed Limit (m/s)</label>
+            <input type="number" step="0.05" id="hw-input-max-speed" value="2.20" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 font-bold" />
+          </div>
+          <div class="space-y-1">
+            <label class="block font-bold text-slate-700">E-STOP Laser Distance (cm)</label>
+            <input type="number" step="1" id="hw-input-estop-dist" value="30" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 font-bold" />
+          </div>
+          <div class="space-y-1">
+            <label class="block font-bold text-slate-700">PCA9685 PWM Freq (Hz)</label>
+            <input type="number" step="1" id="hw-input-pwm-freq" value="50" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 font-bold" />
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 flex items-center justify-between">
+          <div class="text-xs font-mono text-slate-500">
+            * Config automatically syncs to ~/intramove/config/agv_config.json on the Raspberry Pi 4.
+          </div>
+          <button id="admin-btn-save-hw-config" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs shadow-md transition-all cursor-pointer">
+            Save &amp; Calibrate Hardware on Pi
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="slam-toast-msg" class="fixed bottom-5 right-5 z-50 px-5 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-mono shadow-2xl opacity-0 pointer-events-none transition-opacity duration-300 flex items-center gap-2">
+    <span class="material-symbols-outlined text-cyan-400 text-base">info</span>
+    <span id="slam-toast-text">Notification</span>
+  </div>
+
+  <!-- Main JavaScript Module -->
+  <script type="module" src="/src/slam-studio.js"></script>
+</body>
+</html>
