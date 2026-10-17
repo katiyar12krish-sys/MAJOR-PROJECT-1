@@ -50,7 +50,8 @@ export class SlamStudioApp {
     this.isScanning = false;
     this.isHardwareConnected = false;
     this.ws = null;
-    this.wsUrl = 'ws://192.168.1.100:8765';
+    const savedPiIp = localStorage.getItem('intramove_pi_ip') || localStorage.getItem('intramove_pi_ssh_ip') || '';
+    this.wsUrl = savedPiIp ? `ws://${savedPiIp}:8765` : '';
 
     // VL53L5CX 8x8 Depth Matrix (64 zones in mm)
     this.matrix64 = new Float32Array(64).fill(3000);

@@ -69,7 +69,7 @@
       <div class="hidden lg:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100/90 border border-slate-300 text-xs font-mono shadow-inner">
         <span class="material-symbols-outlined text-sm text-cyan-700">terminal</span>
         <span class="text-slate-500">Target Bridge:</span>
-        <span id="slam-active-room-title" class="text-slate-900 font-bold">pi@10.215.209.29 (SSH:22) · ~/intramove</span>
+        <span id="slam-active-room-title" class="text-slate-900 font-bold">pi@&lt;Enter-Pi-IP&gt; (SSH:22) · ~/intramove</span>
       </div>
 
       <!-- Hardware Connection Status & Actions -->
@@ -130,11 +130,11 @@
       </div>
 
       <!-- Quick PowerShell Bridge Launcher Button -->
-      <a href="/#" onclick="alert('PowerShell SSH command copied to clipboard! You can also double click CONNECT_PI_POWERSHELL.bat in your project folder.'); navigator.clipboard.writeText('ssh -p 22 pi@10.215.209.29'); return false;" class="flex items-center gap-1.5 text-xs font-mono text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl border border-slate-300 transition-colors shadow-sm" title="Click to copy PowerShell SSH Command">
+      <button id="admin-quick-ssh-btn" class="flex items-center gap-1.5 text-xs font-mono text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl border border-slate-300 transition-colors shadow-sm cursor-pointer" title="Click to copy PowerShell SSH Command">
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
         <span class="font-bold text-slate-900">PowerShell SSH:</span>
-        <span class="text-cyan-700 font-bold">ssh pi@10.215.209.29</span>
-      </a>
+        <span id="header-ssh-cmd-text" class="text-cyan-700 font-bold">ssh pi@&lt;Enter-Pi-IP&gt;</span>
+      </button>
     </div>
   </div>
 
@@ -521,9 +521,9 @@
         <div class="p-4 rounded-2xl bg-white border border-slate-300 shadow-sm space-y-1">
           <div class="flex items-center justify-between">
             <span class="text-[10px] font-mono text-slate-500 font-bold uppercase">SSH Connection</span>
-            <span class="text-[10px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">PORT 22</span>
+            <span id="admin-ssh-status-pill" class="text-[10px] font-mono text-slate-700 font-bold bg-slate-100 px-2 py-0.5 rounded border border-slate-300">PORT 22</span>
           </div>
-          <div id="admin-ssh-ip-badge" class="text-base font-extrabold text-slate-900 font-mono">pi@10.215.209.29:22</div>
+          <div id="admin-ssh-ip-badge" class="text-base font-extrabold text-slate-900 font-mono">pi@&lt;Enter-Pi-IP&gt;:22</div>
           <div class="text-xs font-mono text-slate-500">PowerShell SSH Tunnel Bridge</div>
         </div>
 
@@ -548,29 +548,79 @@
         </div>
       </div>
 
-      <!-- PowerShell Direct Bridge Action Card -->
-      <div class="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-950 text-white border border-slate-700 shadow-xl space-y-3">
+      <!-- User Raspberry Pi IP Address & Connection Action Card -->
+      <div class="p-5 rounded-2xl bg-white border border-slate-300 shadow-sm space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-2.5">
-            <span class="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-400 text-cyan-400 flex items-center justify-center font-mono font-bold text-sm">
-              PS
+            <span class="w-9 h-9 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center font-mono font-bold text-sm">
+              <span class="material-symbols-outlined text-lg">settings_ethernet</span>
             </span>
             <div>
-              <h3 class="text-sm font-bold font-mono text-cyan-300">Windows PowerShell Direct SSH Tunnel</h3>
-              <p class="text-xs text-slate-300 font-mono">Execute terminal commands directly on Raspberry Pi 4 inside ~/intramove</p>
+              <h3 class="text-sm font-bold font-mono text-slate-900">Raspberry Pi Real IP Address Configuration</h3>
+              <p class="text-xs text-slate-500 font-mono">Enter your Pi's actual local network IP (e.g. 192.168.x.x or 10.x.x.x) - no hardcoded defaults</p>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button id="admin-btn-copy-ps" class="px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer">
+            <button id="admin-btn-test-pi" class="px-3.5 py-1.5 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-300 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer">
+              <span class="material-symbols-outlined text-sm">network_ping</span>
+              <span>Test Ping</span>
+            </button>
+            <button id="admin-btn-launch-ps" class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer" title="Directly launch native Windows PowerShell with SSH session">
+              <span class="material-symbols-outlined text-sm">terminal</span>
+              <span>Open PowerShell SSH</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+          <div class="md:col-span-3">
+            <div class="flex items-center rounded-xl bg-slate-50 border border-slate-300 overflow-hidden text-xs font-mono">
+              <span class="px-3 py-2.5 bg-slate-100 text-slate-500 font-bold border-r border-slate-300">User:</span>
+              <input type="text" id="admin-input-pi-user" value="major" placeholder="major" class="w-full px-2.5 py-2.5 font-bold text-slate-900 focus:outline-none" />
+            </div>
+          </div>
+          <div class="md:col-span-6">
+            <input type="text" id="admin-input-pi-ip" placeholder="Enter Pi IP (e.g. 192.168.0.148 or major@192.168.0.148)" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-cyan-500" />
+          </div>
+          <div class="md:col-span-3 flex items-center gap-2">
+            <button id="admin-btn-save-ip" class="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-mono font-bold flex items-center justify-center gap-1 shadow-sm transition-all cursor-pointer">
+              <span class="material-symbols-outlined text-sm">save</span>
+              <span>Save</span>
+            </button>
+            <button id="admin-btn-copy-ps" class="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-mono font-bold flex items-center justify-center gap-1 transition-all cursor-pointer" title="Copy SSH Command">
               <span class="material-symbols-outlined text-sm">content_copy</span>
-              <span>Copy SSH Command</span>
+              <span>Copy</span>
             </button>
           </div>
         </div>
         
-        <div class="p-3 rounded-xl bg-black/60 border border-slate-700 font-mono text-xs flex items-center justify-between text-cyan-200 select-all">
-          <span id="admin-ps-cmd-display">ssh pi@10.215.209.29 -p 22</span>
-          <span class="text-[10px] font-mono text-slate-400">PowerShell Ready</span>
+        <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs flex items-center justify-between text-cyan-300 select-all">
+          <div class="flex items-center gap-2 truncate">
+            <span class="text-slate-500 font-bold">SSH Command:</span>
+            <span id="admin-ps-cmd-display" class="font-bold">ssh major@&lt;Enter-Pi-IP&gt; -p 22 -t 'cd ~/intramove; bash'</span>
+          </div>
+          <span class="text-[10px] font-mono text-slate-400 shrink-0">Native OpenSSH ➔ ~/intramove</span>
+        </div>
+
+        <!-- Live Connection & Port Telemetry Activity Stream -->
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-white space-y-2.5 font-mono">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+              <h4 class="text-xs font-bold text-slate-200 uppercase">Live Port Telemetry &amp; Activity Stream</h4>
+            </div>
+            <div class="flex items-center gap-2">
+              <span data-pi-ssh-pill class="text-[9px] font-bold bg-slate-800 text-slate-400 px-2 py-0.5 rounded">PORT 22: STANDBY</span>
+              <span class="text-[9px] font-bold bg-slate-800 text-cyan-400 px-2 py-0.5 rounded">PORT 8765: ACTIVE</span>
+            </div>
+          </div>
+          <div class="text-[11px] text-cyan-300 flex items-center gap-2">
+            <span class="text-slate-500 font-bold">Status:</span>
+            <span data-pi-activity-text class="truncate font-semibold">Standby</span>
+          </div>
+          <div class="connection-log-stream p-2.5 rounded-xl bg-black/80 border border-slate-800 h-28 overflow-y-auto space-y-1 text-[11px] select-text">
+            <!-- Populated dynamically by connectionManager -->
+          </div>
         </div>
       </div>
 
@@ -636,29 +686,72 @@
             <span class="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>
             <span class="text-xs font-mono font-bold text-slate-500 uppercase">Raspberry Pi Remote Directory:</span>
             <span id="admin-editor-filepath" class="text-sm font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-              ~/intramove/main_robot.py
+              ~/intramove/
             </span>
           </div>
           <p id="admin-editor-linecount" class="text-xs text-slate-500 font-mono mt-1">
-            68 lines · Python 3.11 · Live Sync to Pi 4
+            Custom User Code · Direct Upload &amp; Live Sync to Pi 4
           </p>
         </div>
 
-        <div class="flex items-center gap-2">
-          <button id="admin-btn-paste-code" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-mono font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer">
-            <span class="material-symbols-outlined text-sm">content_paste</span>
-            <span>Paste Code</span>
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Hidden File Upload Input -->
+          <input type="file" id="admin-file-upload-input" multiple class="hidden" accept=".py,.sh,.json,.txt,.c,.cpp,.h,.ino,.conf" />
+
+          <button id="admin-btn-pull-remote" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer" title="Pull all files from /home/major/intramove">
+            <span class="material-symbols-outlined text-sm">sync</span>
+            <span>Sync Pi (~/intramove)</span>
           </button>
 
-          <button id="admin-btn-save-code" class="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md shadow-cyan-600/20 active:scale-95 transition-all cursor-pointer">
+          <button id="admin-btn-toggle-libs" class="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer" title="Scan installed Python libraries on Pi">
+            <span class="material-symbols-outlined text-sm">extension</span>
+            <span>Pi Libs</span>
+          </button>
+
+          <button id="admin-btn-upload-code" class="px-3 py-2 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-300 text-xs font-mono font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-sm text-cyan-700">upload_file</span>
+            <span>Upload File</span>
+          </button>
+
+          <button id="admin-btn-download-code" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-mono font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-sm">download</span>
+            <span>Download</span>
+          </button>
+
+          <button id="admin-btn-save-code" class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md shadow-cyan-600/20 active:scale-95 transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-sm">save</span>
+            <span>Save Local</span>
+          </button>
+
+          <button id="admin-btn-push-remote" class="px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer" title="Push active code directly to ~/intramove on Pi">
             <span class="material-symbols-outlined text-sm">cloud_upload</span>
-            <span>Save &amp; Deploy to Pi</span>
+            <span>Push to Pi</span>
           </button>
 
-          <button id="admin-btn-run-code" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer">
+          <button id="admin-btn-run-code" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer">
             <span class="material-symbols-outlined text-sm">play_arrow</span>
-            <span>Run on Pi</span>
+            <span>Run</span>
           </button>
+        </div>
+      </div>
+
+      <!-- Collapsible Pi Python Libraries Inspector Drawer -->
+      <div id="admin-libraries-drawer" class="hidden p-4 rounded-2xl bg-slate-900 border border-purple-800 text-white space-y-3 shadow-xl">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-purple-400">extension</span>
+            <h4 class="text-xs font-mono font-bold text-slate-200 uppercase">Installed Python Packages on Raspberry Pi (<span data-pi-user-badge>major</span>@Pi)</h4>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="admin-btn-refresh-libs" class="px-3 py-1 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-mono font-bold flex items-center gap-1 cursor-pointer">
+              <span class="material-symbols-outlined text-xs">refresh</span>
+              <span>Scan Pi (pip list)</span>
+            </button>
+            <button id="admin-btn-close-libs" class="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono cursor-pointer">Close</button>
+          </div>
+        </div>
+        <div class="pi-libraries-container">
+          <div class="p-3 text-center text-slate-500 font-mono text-xs">Click "Scan Pi" to query all Python libraries installed on the Raspberry Pi.</div>
         </div>
       </div>
 
@@ -672,15 +765,21 @@
               <span class="material-symbols-outlined text-sm text-cyan-400">folder</span>
               <span>~/intramove (Pi 4)</span>
             </div>
-            <button id="admin-btn-new-file" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[11px] font-mono flex items-center gap-1 cursor-pointer">
-              <span class="material-symbols-outlined text-xs">add</span>
-              <span>New File</span>
-            </button>
+            <div class="flex items-center gap-1.5">
+              <button id="admin-btn-upload-file" class="px-2.5 py-1 rounded-lg bg-cyan-700/60 hover:bg-cyan-600 text-cyan-200 text-[11px] font-mono flex items-center gap-1 cursor-pointer" title="Upload custom script files">
+                <span class="material-symbols-outlined text-xs">upload_file</span>
+                <span>Upload</span>
+              </button>
+              <button id="admin-btn-new-file" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[11px] font-mono flex items-center gap-1 cursor-pointer">
+                <span class="material-symbols-outlined text-xs">add</span>
+                <span>New</span>
+              </button>
+            </div>
           </div>
 
           <!-- File List -->
           <div id="admin-file-tree-container" class="space-y-1 max-h-[460px] overflow-y-auto pr-1">
-            <!-- Rendered dynamically by AdminStudioManager -->
+            <!-- Rendered dynamically by AdminStudioManager (No pre-defined codes) -->
           </div>
         </div>
 

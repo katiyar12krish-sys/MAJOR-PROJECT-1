@@ -8,12 +8,121 @@ import { sound } from './audio/soundFX.js';
 import { ScrollVehicleRunner } from './robot/scrollVehicleRunner.js';
 import { SlamMappingStudio } from './slam-mapping.js';
 import { MobileController } from './mobile/mobileController.js';
+import { connectionManager } from './connection/connectionManager.js';
 
 window.addEventListener('DOMContentLoaded', () => {
   // Initialize 3D SLAM & Smartelex VL53L5CX Multi-Location Memory Studio if present
   if (document.getElementById('slam-3d-viewport')) {
     new SlamMappingStudio();
   }
+
+  // Desktop Pi Connection & Activity Monitor Modal Handlers
+  const btnDesktopPiStatus = document.getElementById('btn-desktop-pi-status');
+  const desktopConnModal = document.getElementById('desktop-conn-modal');
+  const btnCloseDesktopConnModal = document.getElementById('btn-close-desktop-conn-modal');
+  const desktopInputPiIp = document.getElementById('desktop-input-pi-ip');
+  const desktopBtnSaveIp = document.getElementById('desktop-btn-save-ip');
+  const desktopBtnTestPing = document.getElementById('desktop-btn-test-ping');
+  const desktopBtnLaunchPs = document.getElementById('desktop-btn-launch-ps');
+  const desktopBtnClearLogs = document.getElementById('desktop-btn-clear-logs');
+  const mobileBtnClearConnLogs = document.getElementById('mobile-btn-clear-conn-logs');
+
+  const desktopInputUser = document.getElementById('desktop-input-pi-user');
+  const desktopBtnSyncRemote = document.getElementById('desktop-btn-sync-remote');
+  const desktopBtnScanLibs = document.getElementById('desktop-btn-scan-libs');
+  const desktopBtnCloseLibs = document.getElementById('desktop-btn-close-libs');
+  const desktopLibrariesDrawer = document.getElementById('desktop-libraries-drawer');
+
+  if (btnDesktopPiStatus && desktopConnModal) {
+    btnDesktopPiStatus.addEventListener('click', () => {
+      desktopConnModal.classList.remove('hidden');
+      if (desktopInputPiIp) desktopInputPiIp.value = connectionManager.piIp;
+      if (desktopInputUser) desktopInputUser.value = connectionManager.piUser;
+      connectionManager.updateAllUIs();
+    });
+  }
+
+  if (btnCloseDesktopConnModal && desktopConnModal) {
+    btnCloseDesktopConnModal.addEventListener('click', () => {
+      desktopConnModal.classList.add('hidden');
+    });
+  }
+
+  if (desktopConnModal) {
+    desktopConnModal.addEventListener('click', (e) => {
+      if (e.target === desktopConnModal) desktopConnModal.classList.add('hidden');
+    });
+  }
+
+  if (desktopBtnSaveIp && desktopInputPiIp) {
+    desktopBtnSaveIp.addEventListener('click', () => {
+      if (desktopInputUser && desktopInputUser.value) {
+        connectionManager.setUser(desktopInputUser.value);
+      }
+      connectionManager.setIp(desktopInputPiIp.value);
+    });
+  }
+
+  if (desktopInputUser) {
+    desktopInputUser.addEventListener('change', () => {
+      connectionManager.setUser(desktopInputUser.value);
+    });
+  }
+
+  if (desktopBtnTestPing) {
+    desktopBtnTestPing.addEventListener('click', () => {
+      if (desktopInputUser && desktopInputUser.value) {
+        connectionManager.setUser(desktopInputUser.value);
+      }
+      if (desktopInputPiIp && desktopInputPiIp.value) {
+        connectionManager.setIp(desktopInputPiIp.value);
+      }
+      connectionManager.checkConnection(false);
+    });
+  }
+
+  if (desktopBtnLaunchPs) {
+    desktopBtnLaunchPs.addEventListener('click', () => {
+      if (desktopInputUser && desktopInputUser.value) {
+        connectionManager.setUser(desktopInputUser.value);
+      }
+      connectionManager.launchPowerShellSsh();
+    });
+  }
+
+  if (desktopBtnSyncRemote) {
+    desktopBtnSyncRemote.addEventListener('click', () => {
+      connectionManager.fetchRemoteFiles('~/intramove');
+    });
+  }
+
+  if (desktopBtnScanLibs) {
+    desktopBtnScanLibs.addEventListener('click', () => {
+      if (desktopLibrariesDrawer) desktopLibrariesDrawer.classList.remove('hidden');
+      connectionManager.fetchLibraries();
+    });
+  }
+
+  if (desktopBtnCloseLibs && desktopLibrariesDrawer) {
+    desktopBtnCloseLibs.addEventListener('click', () => {
+      desktopLibrariesDrawer.classList.add('hidden');
+    });
+  }
+
+  if (desktopBtnClearLogs) {
+    desktopBtnClearLogs.addEventListener('click', () => {
+      connectionManager.clearLogs();
+    });
+  }
+
+  if (mobileBtnClearConnLogs) {
+    mobileBtnClearConnLogs.addEventListener('click', () => {
+      connectionManager.clearLogs();
+    });
+  }
+
+  // Initial update
+  connectionManager.updateAllUIs();
 
   // Cursor Glow Follower
   const cursorDot = document.getElementById('cursor-glow-dot');

@@ -36,7 +36,8 @@ export class SlamMappingStudio {
     // Hardware & Stream State
     this.isHardwareConnected = false;
     this.ws = null;
-    this.wsUrl = 'ws://192.168.1.100:8765';
+    const savedPiIp = localStorage.getItem('intramove_pi_ip') || localStorage.getItem('intramove_pi_ssh_ip') || '';
+    this.wsUrl = savedPiIp ? `ws://${savedPiIp}:8765` : '';
     this.isScanning = true;
     this.activeMapName = 'Live Session (Unsaved)';
     this.currentLocationCategory = 'College';
