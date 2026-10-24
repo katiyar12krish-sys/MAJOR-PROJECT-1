@@ -504,6 +504,7 @@ function piBackendPlugin() {
 }
 
 export default defineConfig({
+  base: './',
   plugins: [piBackendPlugin()],
   server: {
     port: 5173,
