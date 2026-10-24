@@ -840,4 +840,33 @@ body.mobile-app-active {
   }
 }
 
+/* Custom Scrollbar for Desktop Connection Modal */
+#desktop-conn-modal,
+#desktop-conn-modal > div {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(6, 182, 212, 0.45) rgba(15, 23, 42, 0.9);
+}
+
+#desktop-conn-modal::-webkit-scrollbar,
+#desktop-conn-modal > div::-webkit-scrollbar {
+  width: 7px;
+}
+
+#desktop-conn-modal::-webkit-scrollbar-track,
+#desktop-conn-modal > div::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 9999px;
+}
+
+#desktop-conn-modal::-webkit-scrollbar-thumb,
+#desktop-conn-modal > div::-webkit-scrollbar-thumb {
+  background: rgba(6, 182, 212, 0.5);
+  border-radius: 9999px;
+}
+
+#desktop-conn-modal::-webkit-scrollbar-thumb:hover,
+#desktop-conn-modal > div::-webkit-scrollbar-thumb:hover {
+  background: rgba(6, 182, 212, 0.85);
+}
+
 

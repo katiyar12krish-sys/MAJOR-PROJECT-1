@@ -56,17 +56,48 @@ function piBackendPlugin() {
           return;
         }
 
-        // Helper to execute SSH commands non-interactively
-        function runSsh(user, ip, port, cmd, timeoutMs = 7000) {
-          return new Promise((resolve) => {
-            const sshProcess = spawn('ssh', [
-              '-o', 'BatchMode=yes',
+        // Helper to get saved password if available
+        function getSavedPassword() {
+          try {
+            const passFile = resolve(__dirname, '.pi_pass');
+            if (fs.existsSync(passFile)) {
+              return fs.readFileSync(passFile, 'utf8').trim();
+            }
+          } catch (_) {}
+          return '';
+        }
+
+        // Helper to execute SSH commands non-interactively, with or without password
+        function runSsh(user, ip, port, cmd, timeoutMs = 15000, password = '') {
+          return new Promise((resolvePromise) => {
+            const effectivePass = password || getSavedPassword();
+            const askpassBatPath = resolve(__dirname, '.askpass.bat');
+
+            if (!fs.existsSync(askpassBatPath)) {
+              fs.writeFileSync(askpassBatPath, '@echo off\r\necho %INTRAMOVE_SSH_PASS%\r\n', 'utf8');
+            }
+
+            const sshArgs = [
               '-o', 'StrictHostKeyChecking=no',
-              '-o', 'ConnectTimeout=4',
+              '-o', 'UserKnownHostsFile=NUL',
+              '-o', 'LogLevel=ERROR',
+              '-o', 'ConnectTimeout=6',
               '-p', String(port || 22),
               `${user}@${ip}`,
               cmd
-            ]);
+            ];
+
+            const env = { ...process.env };
+            if (effectivePass) {
+              env.DISPLAY = '1';
+              env.SSH_ASKPASS = askpassBatPath;
+              env.SSH_ASKPASS_REQUIRE = 'force';
+              env.INTRAMOVE_SSH_PASS = effectivePass;
+            } else {
+              sshArgs.unshift('-o', 'BatchMode=yes');
+            }
+
+            const sshProcess = spawn('ssh', sshArgs, { env });
 
             let stdout = '';
             let stderr = '';
@@ -75,7 +106,7 @@ function piBackendPlugin() {
             const timer = setTimeout(() => {
               timedOut = true;
               try { sshProcess.kill(); } catch (_) {}
-              resolve({ success: false, error: 'Command timed out (7s). Pi slow or unreachable.', stdout, stderr });
+              resolvePromise({ success: false, error: 'Command timed out (15s). Pi slow or unreachable.', stdout, stderr });
             }, timeoutMs);
 
             sshProcess.stdout.on('data', d => { stdout += d.toString(); });
@@ -85,21 +116,32 @@ function piBackendPlugin() {
               if (timedOut) return;
               clearTimeout(timer);
               const isSuccess = code === 0;
-              const needKey = (stderr && (stderr.includes('Permission denied') || stderr.includes('publickey')));
-              resolve({
+              const needKey = (stderr && (stderr.includes('Permission denied') || stderr.includes('publickey') || stderr.includes('password')));
+              let errorMsg = null;
+              if (!isSuccess) {
+                if (needKey) {
+                  errorMsg = effectivePass
+                    ? `Authentication failed: Incorrect password for ${user}@${ip}.`
+                    : `Password required: Please enter your Raspberry Pi password in the "Pass:" field above and try again.`;
+                } else {
+                  errorMsg = stderr || `Exited with code ${code}`;
+                }
+              }
+
+              resolvePromise({
                 success: isSuccess,
                 code,
                 stdout: stdout.trim(),
                 stderr: stderr.trim(),
                 needKey,
-                error: isSuccess ? null : (needKey ? 'Password required: Run "Open PowerShell SSH" to login or configure ssh-copy-id.' : (stderr || `Exited with code ${code}`))
+                error: errorMsg
               });
             });
 
             sshProcess.on('error', err => {
               if (timedOut) return;
               clearTimeout(timer);
-              resolve({ success: false, error: err.message, stdout, stderr });
+              resolvePromise({ success: false, error: err.message, stdout, stderr });
             });
           });
         }
@@ -137,7 +179,7 @@ function piBackendPlugin() {
           }
         }
 
-        // 3. Save IP and User on disk
+        // 3. Save IP, User, and Password on disk
         if (url.pathname === '/api/pi/save-ip') {
           let body = '';
           req.on('data', chunk => { body += chunk; });
@@ -150,6 +192,14 @@ function piBackendPlugin() {
               if (data.user) {
                 fs.writeFileSync(resolve(__dirname, '.pi_user'), data.user.trim(), 'utf8');
               }
+              if (typeof data.password === 'string') {
+                const passFile = resolve(__dirname, '.pi_pass');
+                if (data.password.trim()) {
+                  fs.writeFileSync(passFile, data.password.trim(), 'utf8');
+                } else if (fs.existsSync(passFile)) {
+                  fs.unlinkSync(passFile);
+                }
+              }
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ success: true, ip: data.ip, user: data.user }));
             } catch (err) {
@@ -160,24 +210,29 @@ function piBackendPlugin() {
           return;
         }
 
-        // 4. Retrieve saved IP & User from disk
+        // 4. Retrieve saved IP, User & Password from disk
         if (url.pathname === '/api/pi/get-ip') {
           try {
             const ipFile = resolve(__dirname, '.pi_ip');
             const userFile = resolve(__dirname, '.pi_user');
+            const passFile = resolve(__dirname, '.pi_pass');
             let savedIp = '';
             let savedUser = 'major';
+            let savedPass = '';
             if (fs.existsSync(ipFile)) {
               savedIp = fs.readFileSync(ipFile, 'utf8').trim();
             }
             if (fs.existsSync(userFile)) {
               savedUser = fs.readFileSync(userFile, 'utf8').trim() || 'major';
             }
+            if (fs.existsSync(passFile)) {
+              savedPass = fs.readFileSync(passFile, 'utf8').trim();
+            }
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ip: savedIp, user: savedUser }));
+            res.end(JSON.stringify({ ip: savedIp, user: savedUser, password: savedPass }));
           } catch (err) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ip: '', user: 'major' }));
+            res.end(JSON.stringify({ ip: '', user: 'major', password: '' }));
           }
           return;
         }
@@ -193,13 +248,15 @@ function piBackendPlugin() {
               const user = (data.user || 'major').trim();
               const port = data.port || 22;
               const cmd = data.cmd || 'ls -la';
+              const password = (data.password || '').trim();
+              const timeout = data.timeoutMs || (cmd.includes('pip') || cmd.includes('apt') ? 120000 : 30000);
 
               if (!ip) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 return res.end(JSON.stringify({ success: false, error: 'No IP specified' }));
               }
 
-              const result = await runSsh(user, ip, port, cmd);
+              const result = await runSsh(user, ip, port, cmd, timeout, password);
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify(result));
             } catch (err) {
@@ -210,29 +267,34 @@ function piBackendPlugin() {
           return;
         }
 
-        // 6. List remote files in ~/intramove (/home/<user>/intramove)
+        // 6. List remote files in ~/intra_move (or ~/intramove)
         if (url.pathname === '/api/pi/list-remote-files') {
           const ip = (url.searchParams.get('ip') || '').trim();
           const user = (url.searchParams.get('user') || 'major').trim();
           const port = url.searchParams.get('port') || 22;
-          const targetDir = url.searchParams.get('dir') || '~/intramove';
+          const targetDir = (url.searchParams.get('dir') || '~/intra_move').trim();
+          const password = (url.searchParams.get('pass') || '').trim();
 
           if (!ip) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             return res.end(JSON.stringify({ success: false, error: 'No IP provided' }));
           }
 
-          // Use python script or fallback ls to safely get file names and sizes
-          const remoteScript = `python3 -c "import os, json; p = os.path.expanduser('${targetDir}'); os.makedirs(p, exist_ok=True); items = [{'name': f, 'size': os.path.getsize(os.path.join(p, f)), 'isDir': os.path.isdir(os.path.join(p, f))} for f in sorted(os.listdir(p)) if not f.startswith('.')]; print(json.dumps(items))" 2>/dev/null || ls -1 -p ${targetDir} 2>/dev/null`;
+          const remoteScript = `python3 -c "import os, json; candidates = ['${targetDir}', '~/intra_move', '~/intramove', '/home/${user}/intra_move']; p = next((os.path.expanduser(c) for c in candidates if os.path.exists(os.path.expanduser(c))), os.path.expanduser('${targetDir}')); os.makedirs(p, exist_ok=True); items = [{'name': f, 'size': os.path.getsize(os.path.join(p, f)), 'isDir': os.path.isdir(os.path.join(p, f))} for f in sorted(os.listdir(p)) if not f.startswith('.')]; print(json.dumps({'dir': p, 'files': items}))" 2>/dev/null || ls -1 -p ${targetDir} 2>/dev/null`;
 
-          runSsh(user, ip, port, remoteScript).then(result => {
+          runSsh(user, ip, port, remoteScript, 12000, password).then(result => {
             if (result.success) {
               let files = [];
+              let resolvedDir = targetDir;
               try {
-                // Try JSON output from Python
-                files = JSON.parse(result.stdout);
+                const parsed = JSON.parse(result.stdout);
+                if (parsed.files) {
+                  files = parsed.files;
+                  resolvedDir = parsed.dir || targetDir;
+                } else if (Array.isArray(parsed)) {
+                  files = parsed;
+                }
               } catch (_) {
-                // Fallback parsing ls
                 const lines = result.stdout.split('\n').map(l => l.trim()).filter(Boolean);
                 files = lines.map(line => ({
                   name: line.replace(/\/$/, ''),
@@ -246,7 +308,7 @@ function piBackendPlugin() {
                 success: true,
                 user,
                 ip,
-                dir: targetDir,
+                dir: resolvedDir,
                 files
               }));
             } else {
@@ -257,25 +319,27 @@ function piBackendPlugin() {
           return;
         }
 
-        // 7. Read remote file content from ~/intramove
+        // 7. Read remote file content from ~/intra_move / ~/intramove
         if (url.pathname === '/api/pi/read-remote-file') {
           const ip = (url.searchParams.get('ip') || '').trim();
           const user = (url.searchParams.get('user') || 'major').trim();
           const port = url.searchParams.get('port') || 22;
           const filename = (url.searchParams.get('file') || '').trim();
+          const targetDir = (url.searchParams.get('dir') || '~/intra_move').trim();
+          const password = (url.searchParams.get('pass') || '').trim();
 
           if (!ip || !filename) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             return res.end(JSON.stringify({ success: false, error: 'Missing IP or filename' }));
           }
 
-          // Read file content
-          const cmd = `cat ~/intramove/${filename} 2>/dev/null || cat /home/${user}/intramove/${filename}`;
-          runSsh(user, ip, port, cmd, 8000).then(result => {
+          const cmd = `cat ${targetDir}/${filename} 2>/dev/null || cat ~/intra_move/${filename} 2>/dev/null || cat ~/intramove/${filename} 2>/dev/null || cat /home/${user}/intra_move/${filename}`;
+          runSsh(user, ip, port, cmd, 8000, password).then(result => {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
               success: result.success,
               filename,
+              dir: targetDir,
               content: result.stdout,
               error: result.error
             }));
@@ -283,7 +347,7 @@ function piBackendPlugin() {
           return;
         }
 
-        // 8. Write / Save file to ~/intramove on Pi
+        // 8. Write / Save file to ~/intra_move on Pi
         if (url.pathname === '/api/pi/write-remote-file') {
           let body = '';
           req.on('data', chunk => { body += chunk; });
@@ -294,22 +358,24 @@ function piBackendPlugin() {
               const user = (data.user || 'major').trim();
               const port = data.port || 22;
               const filename = (data.filename || '').trim();
+              const targetDir = (data.dir || '~/intra_move').trim();
               const content = data.content || '';
+              const password = (data.password || '').trim();
 
               if (!ip || !filename) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 return res.end(JSON.stringify({ success: false, error: 'Missing IP or filename' }));
               }
 
-              // Base64 encode content to prevent shell quoting breakage
               const b64 = Buffer.from(content, 'utf8').toString('base64');
-              const cmd = `mkdir -p ~/intramove && echo "${b64}" | base64 -d > ~/intramove/${filename}`;
+              const cmd = `mkdir -p ${targetDir} && echo "${b64}" | base64 -d > ${targetDir}/${filename}`;
 
-              const result = await runSsh(user, ip, port, cmd, 9000);
+              const result = await runSsh(user, ip, port, cmd, 10000, password);
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({
                 success: result.success,
                 filename,
+                dir: targetDir,
                 size: Buffer.byteLength(content, 'utf8'),
                 error: result.error
               }));
@@ -326,6 +392,7 @@ function piBackendPlugin() {
           const ip = (url.searchParams.get('ip') || '').trim();
           const user = (url.searchParams.get('user') || 'major').trim();
           const port = url.searchParams.get('port') || 22;
+          const password = (url.searchParams.get('pass') || '').trim();
 
           if (!ip) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -335,7 +402,7 @@ function piBackendPlugin() {
           // Query installed libraries via python / pip
           const cmd = `python3 -m pip list --format=json 2>/dev/null || python3 -c "import pkg_resources, json; print(json.dumps([{'name': d.project_name, 'version': d.version} for d in sorted(pkg_resources.working_set, key=lambda x: x.project_name.lower())]))" 2>/dev/null || pip list`;
 
-          runSsh(user, ip, port, cmd, 10000).then(result => {
+          runSsh(user, ip, port, cmd, 15000, password).then(result => {
             if (result.success) {
               let libraries = [];
               try {
@@ -360,6 +427,71 @@ function piBackendPlugin() {
             } else {
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify(result));
+            }
+          });
+          return;
+        }
+
+        // 10. Install Python Library on Raspberry Pi
+        if (url.pathname === '/api/pi/install-library') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const data = JSON.parse(body || '{}');
+              const ip = (data.ip || '').trim();
+              const user = (data.user || 'major').trim();
+              const port = data.port || 22;
+              const pkg = (data.pkg || '').trim();
+              const password = (data.password || '').trim();
+
+              if (!ip || !pkg) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify({ success: false, error: 'Missing IP or package name' }));
+              }
+
+              // Sanitize package name (allow alphanumeric, dash, underscore, dot, version specifiers)
+              const cleanPkg = pkg.replace(/[^a-zA-Z0-9_\-\.\=\<\>\~\@\[\]\,]/g, '');
+              const cmd = `python3 -m pip install "${cleanPkg}" --break-system-packages 2>&1 || pip3 install "${cleanPkg}" 2>&1 || pip install "${cleanPkg}"`;
+
+              const result = await runSsh(user, ip, port, cmd, 150000, password);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify(result));
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: err.message }));
+            }
+          });
+          return;
+        }
+
+        // 11. Uninstall Python Library on Raspberry Pi
+        if (url.pathname === '/api/pi/uninstall-library') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const data = JSON.parse(body || '{}');
+              const ip = (data.ip || '').trim();
+              const user = (data.user || 'major').trim();
+              const port = data.port || 22;
+              const pkg = (data.pkg || '').trim();
+              const password = (data.password || '').trim();
+
+              if (!ip || !pkg) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify({ success: false, error: 'Missing IP or package name' }));
+              }
+
+              const cleanPkg = pkg.replace(/[^a-zA-Z0-9_\-\.]/g, '');
+              const cmd = `python3 -m pip uninstall -y "${cleanPkg}" --break-system-packages 2>&1 || pip3 uninstall -y "${cleanPkg}" 2>&1 || pip uninstall -y "${cleanPkg}"`;
+
+              const result = await runSsh(user, ip, port, cmd, 60000, password);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify(result));
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: err.message }));
             }
           });
           return;

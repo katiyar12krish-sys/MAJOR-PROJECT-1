@@ -818,23 +818,60 @@
   <!-- ========================================================================= -->
   <!-- DESKTOP RASPBERRY PI LIVE CONNECTION & TELEMETRY MONITOR MODAL -->
   <!-- ========================================================================= -->
-  <div id="desktop-conn-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-6 text-white shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+  <div id="desktop-conn-modal" class="hidden fixed inset-0 z-50 bg-slate-950 backdrop-blur-md overflow-y-auto p-0 flex items-start justify-center transition-all">
+    <div id="desktop-conn-card" class="bg-slate-900 border-x-0 sm:border border-slate-800 rounded-none w-full max-w-none min-h-screen p-4 sm:p-6 text-white shadow-2xl space-y-4 overflow-y-auto animate-in fade-in duration-200 relative transition-all">
       
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+      <!-- Modal Header (Sticky with ample padding from scrollbar) -->
+      <div class="sticky top-0 bg-slate-900/95 backdrop-blur-md z-30 flex items-center justify-between border-b border-slate-800 pb-3 pt-2 -mx-4 sm:-mx-6 px-4 sm:px-8 shadow-sm">
         <div class="flex items-center gap-2.5">
-          <span class="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400 text-cyan-400 flex items-center justify-center font-mono font-bold text-base">
+          <span class="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400 text-cyan-400 flex items-center justify-center font-mono font-bold text-base shrink-0">
             <span class="material-symbols-outlined">developer_board</span>
           </span>
           <div>
-            <h3 class="text-base font-bold font-mono text-cyan-300">Raspberry Pi 4 Live Connection &amp; Port Monitor</h3>
-            <p class="text-xs text-slate-400 font-mono">Real-time status of SSH Port 22, WebSocket 8765, and disconnect/reconnect events</p>
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-bold font-mono text-cyan-300">Raspberry Pi 4 Live Connection &amp; Port Monitor</h3>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-800 text-cyan-400">~/intra_move</span>
+            </div>
+            <p class="text-xs text-slate-400 font-mono">Real-time status of SSH Port 22, WebSocket 8765, and In-App Linux Terminal</p>
           </div>
         </div>
-        <button id="btn-close-desktop-conn-modal" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
-          <span class="material-symbols-outlined text-lg">close</span>
-        </button>
+
+        <!-- Header Actions: Activity Logs Drawer, Fullscreen Toggle & Close Button -->
+        <div class="flex items-center gap-2 pr-1 sm:pr-2">
+          <!-- Toggle Activity Log Stream Button -->
+          <button id="btn-toggle-activity-logs" type="button" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-cyan-300 border border-slate-700 text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-sm" title="Open Live Connection & Activity Log Stream">
+            <span class="material-symbols-outlined text-base">history</span>
+            <span class="hidden sm:inline">Activity Logs</span>
+            <span id="log-count-badge" class="px-1.5 py-0.2 rounded-full bg-cyan-950 border border-cyan-700 text-[10px] text-cyan-300">●</span>
+          </button>
+
+          <!-- Toggle Modal Fullscreen / Shrink Coverage (Default: Full Screen) -->
+          <button id="btn-toggle-modal-fullscreen" type="button" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center transition-all cursor-pointer shrink-0" title="Exit Full Screen / Shrink View">
+            <span id="icon-modal-fullscreen" class="material-symbols-outlined text-base">fullscreen_exit</span>
+          </button>
+
+          <!-- Close Modal -->
+          <button id="btn-close-desktop-conn-modal" type="button" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-200 border border-slate-700 flex items-center justify-center transition-colors cursor-pointer shrink-0" title="Close Panel">
+            <span class="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Slide-down On-Demand Activity Logs Drawer (Toggled by Header Clock Button) -->
+      <div id="desktop-activity-logs-drawer" class="hidden p-3.5 rounded-2xl bg-black/95 border border-cyan-800/80 font-mono space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+        <div class="flex items-center justify-between text-xs pb-1 border-b border-slate-800">
+          <span class="text-cyan-300 font-bold uppercase flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm text-cyan-400">history</span>
+            <span>Live Connection &amp; Activity Log Stream (Individual Inspector)</span>
+          </span>
+          <div class="flex items-center gap-2">
+            <button id="desktop-btn-clear-logs" type="button" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors">Clear Stream</button>
+            <button id="btn-close-activity-logs-drawer" type="button" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer transition-colors">✕ Hide</button>
+          </div>
+        </div>
+        <div class="connection-log-stream p-3 rounded-xl bg-black border border-slate-800/90 h-44 overflow-y-auto space-y-1 font-mono text-[11px] select-text">
+          <!-- Populated by ConnectionManager -->
+        </div>
       </div>
 
       <!-- Live Port Telemetry Grid -->
@@ -861,45 +898,144 @@
         </div>
       </div>
 
-      <!-- Target IP & User Configuration -->
+      <!-- Target IP, User & Password Configuration -->
       <div class="p-4 rounded-2xl bg-black/40 border border-slate-800 space-y-3 font-mono">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-bold text-slate-300 uppercase">Target Raspberry Pi Host</label>
-          <span class="text-[10px] text-cyan-400">Remote Directory: <strong class="text-white">~/intramove</strong></span>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="flex items-center rounded-xl bg-slate-800 border border-slate-700 overflow-hidden text-xs">
-            <span class="px-2.5 py-2.5 text-slate-400 bg-slate-900/80 font-bold border-r border-slate-700">User:</span>
-            <input type="text" id="desktop-input-pi-user" value="major" placeholder="major" class="w-20 px-2 py-2.5 bg-transparent font-bold text-white focus:outline-none" />
+        <div class="flex flex-wrap items-center justify-between gap-1">
+          <label class="text-xs font-bold text-slate-300 uppercase">Target Raspberry Pi Host &amp; Credentials</label>
+          <div class="flex items-center gap-1.5 text-[11px] text-cyan-400">
+            <span>Remote Dir:</span>
+            <input type="text" id="desktop-input-pi-dir" value="~/intra_move" placeholder="~/intra_move" class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-white font-bold text-[11px] w-32 focus:outline-none focus:border-cyan-400" />
           </div>
-          <input type="text" id="desktop-input-pi-ip" placeholder="Enter Pi IP (e.g. 192.168.0.148 or major@192.168.0.148)" class="flex-1 min-w-[200px] px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-white focus:outline-none focus:border-cyan-500 placeholder:text-slate-500" />
-          <button id="desktop-btn-save-ip" class="px-3.5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold cursor-pointer">
-            Save
-          </button>
-          <button id="desktop-btn-test-ping" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-bold flex items-center gap-1 cursor-pointer">
-            <span class="material-symbols-outlined text-sm">network_ping</span>
-            <span>Test Ping</span>
-          </button>
-          <button id="desktop-btn-launch-ps" class="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer" title="Directly opens PowerShell into /home/major/intramove">
-            <span class="material-symbols-outlined text-sm">terminal</span>
-            <span>PowerShell SSH</span>
-          </button>
         </div>
 
-        <!-- Quick Remote Sync & Library Inspection Bar -->
-        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
-          <div class="flex items-center gap-2">
-            <button id="desktop-btn-sync-remote" class="px-3 py-1.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700 text-emerald-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer" title="Pull all files from /home/major/intramove">
-              <span class="material-symbols-outlined text-xs">sync</span>
-              <span>Sync Files (~/intramove)</span>
-            </button>
-            <button id="desktop-btn-scan-libs" class="px-3 py-1.5 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-700 text-purple-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer" title="Query pip list on Raspberry Pi">
-              <span class="material-symbols-outlined text-xs">extension</span>
-              <span>Scan Pi Libraries</span>
+        <!-- Row 1: Credentials Inputs -->
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+          <!-- User Input (3 cols) -->
+          <div class="sm:col-span-3 flex items-center rounded-xl bg-slate-800 border border-slate-700 overflow-hidden text-xs">
+            <span class="px-2.5 py-2.5 text-slate-400 bg-slate-900/80 font-bold border-r border-slate-700 shrink-0">User:</span>
+            <input type="text" id="desktop-input-pi-user" value="major" placeholder="major" class="w-full px-2.5 py-2.5 bg-transparent font-bold text-white focus:outline-none" />
+          </div>
+
+          <!-- IP Host Input (4 cols) -->
+          <div class="sm:col-span-4 flex items-center rounded-xl bg-slate-800 border border-slate-700 overflow-hidden text-xs">
+            <span class="px-2.5 py-2.5 text-slate-400 bg-slate-900/80 font-bold border-r border-slate-700 shrink-0">Host:</span>
+            <input type="text" id="desktop-input-pi-ip" placeholder="192.168.0.149" class="w-full px-2.5 py-2.5 bg-transparent font-bold text-white focus:outline-none placeholder:text-slate-500" />
+          </div>
+
+          <!-- Password Input (5 cols) -->
+          <div class="sm:col-span-5 flex items-center rounded-xl bg-slate-800 border border-slate-700 overflow-hidden text-xs">
+            <span class="px-2.5 py-2.5 text-slate-400 bg-slate-900/80 font-bold border-r border-slate-700 shrink-0">Pass:</span>
+            <input type="password" id="desktop-input-pi-pass" placeholder="Enter Pi Password (any length)" class="w-full px-2.5 py-2.5 bg-transparent font-bold text-white focus:outline-none placeholder:text-slate-500 min-w-0" autocomplete="current-password" />
+            <button id="desktop-btn-toggle-pass" type="button" class="px-2.5 text-slate-400 hover:text-white cursor-pointer shrink-0" title="Show/Hide Password">
+              <span id="desktop-pass-eye-icon" class="material-symbols-outlined text-sm">visibility</span>
             </button>
           </div>
-          <div class="text-[11px] text-slate-400">
+        </div>
+
+        <!-- Row 2: Action Buttons & Status -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Save Button -->
+            <button id="desktop-btn-save-ip" class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm transition-all">
+              <span class="material-symbols-outlined text-xs">save</span>
+              <span>Save</span>
+            </button>
+
+            <!-- Test Ping Button -->
+            <button id="desktop-btn-test-ping" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all">
+              <span class="material-symbols-outlined text-xs">network_ping</span>
+              <span>Test Ping</span>
+            </button>
+
+            <!-- In-App Web Terminal Scroll Button -->
+            <button id="desktop-btn-toggle-terminal" class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-all">
+              <span class="material-symbols-outlined text-xs">terminal</span>
+              <span>Terminal</span>
+            </button>
+
+            <!-- Sync Remote Files -->
+            <button id="desktop-btn-sync-remote" class="px-3 py-2 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700 text-emerald-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer">
+              <span class="material-symbols-outlined text-xs">sync</span>
+              <span>Sync Remote Files</span>
+            </button>
+
+            <!-- Scan Pi Libraries -->
+            <button id="desktop-btn-scan-libs" class="px-3 py-2 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-700 text-purple-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer">
+              <span class="material-symbols-outlined text-xs">extension</span>
+              <span>Scan Pi Libs</span>
+            </button>
+
+            <!-- External PS -->
+            <button id="desktop-btn-launch-ps" class="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-[11px] font-bold flex items-center gap-1 cursor-pointer" title="Optional: External PowerShell">
+              <span class="material-symbols-outlined text-xs">open_in_new</span>
+              <span>External PS</span>
+            </button>
+          </div>
+
+          <div class="text-[11px] text-slate-400 shrink-0">
             <span>Status: <strong data-pi-activity-text class="text-cyan-300 font-normal">Standby</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Remote File Explorer & Embedded Code Editor (Persistent Browser Memory Cache) -->
+      <div id="desktop-files-code-drawer" class="p-3.5 rounded-2xl bg-black/60 border border-cyan-900/60 font-mono space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-lg bg-cyan-950 border border-cyan-600 text-cyan-300 flex items-center justify-center shrink-0">
+              <span class="material-symbols-outlined text-xs">folder_open</span>
+            </span>
+            <span class="text-xs font-bold text-cyan-300 uppercase">Raspberry Pi Remote Files (Saved in Memory Cache)</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">Offline &amp; Reconnect Safe</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] text-slate-400">Click any file to inspect, edit, upload, or run</span>
+          </div>
+        </div>
+
+        <!-- Discovered Remote Files Chips (Populated from memory cache / SSH sync) -->
+        <div class="pi-remote-files-container">
+          <div class="p-2 text-center text-slate-500 text-xs">Loading cached Pi files...</div>
+        </div>
+
+        <!-- Embedded Code Editor -->
+        <div id="desktop-code-editor-box" class="p-3 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs border-b border-slate-800 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-sm text-cyan-400">edit_note</span>
+              <span class="text-slate-400">Active File:</span>
+              <strong id="desktop-active-file-title" class="text-cyan-300 font-mono">amr_all_in_one.py</strong>
+              <span id="desktop-file-status-badge" class="text-[10px] px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-cyan-400">Cached in Memory</span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <!-- Upload & Save to Pi -->
+              <button id="desktop-btn-save-code" type="button" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-all shadow-sm">
+                <span class="material-symbols-outlined text-xs">cloud_upload</span>
+                <span>Save / Upload to Pi</span>
+              </button>
+
+              <!-- Run Script on Pi -->
+              <button id="desktop-btn-run-code" type="button" class="px-3 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-all shadow-sm">
+                <span class="material-symbols-outlined text-xs">play_arrow</span>
+                <span>Run Script on Pi</span>
+              </button>
+
+              <!-- Re-fetch from Pi -->
+              <button id="desktop-btn-reload-code" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs flex items-center gap-1 cursor-pointer transition-all">
+                <span class="material-symbols-outlined text-xs">refresh</span>
+                <span>Reload</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Code Textarea -->
+          <textarea id="desktop-code-editor" class="w-full h-48 bg-black/90 text-cyan-300 font-mono text-xs p-3 rounded-lg border border-slate-800 focus:outline-none focus:border-cyan-400 resize-y leading-relaxed select-text" spellcheck="false" placeholder="# Click any file above or write Python code here..."></textarea>
+          
+          <div class="flex items-center justify-between text-[11px] text-slate-500">
+            <span id="desktop-editor-stats">Characters: 0 | Lines: 1</span>
+            <span>Target on Pi: <strong id="desktop-editor-target-path" class="text-slate-400">~/intra_move/amr_all_in_one.py</strong></span>
           </div>
         </div>
       </div>
@@ -918,19 +1054,53 @@
         </div>
       </div>
 
-      <!-- Live Event Activity Stream & Disconnect Log -->
-      <div class="space-y-2 font-mono">
-        <div class="flex items-center justify-between text-xs">
-          <span class="text-slate-300 font-bold uppercase flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-sm text-cyan-400">history</span>
-            <span>Live Connection &amp; Activity Log Stream</span>
+      <!-- Embedded Web Terminal & Command Runner (Directly in Browser, No External Window!) -->
+      <div id="desktop-terminal-drawer" class="p-3.5 rounded-2xl bg-black/90 border border-cyan-800/60 font-mono space-y-2 transition-all">
+        <div class="flex items-center justify-between text-xs pb-1 border-b border-slate-800">
+          <span class="text-cyan-300 font-bold flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm text-cyan-400">terminal</span>
+            <span>In-App Web Terminal · <span data-pi-user-badge>major</span>@<span data-pi-ip-badge>192.168.0.149</span>:~/intra_move</span>
           </span>
           <div class="flex items-center gap-2">
-            <button id="desktop-btn-clear-logs" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 hover:text-white cursor-pointer">Clear</button>
+            <!-- Full View / Contract Toggle -->
+            <button id="desktop-btn-term-expand" type="button" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 cursor-pointer flex items-center gap-1 transition-all" title="Toggle Terminal Full Screen Height">
+              <span id="icon-term-expand" class="material-symbols-outlined text-xs">fullscreen</span>
+              <span id="text-term-expand">Full View</span>
+            </button>
+            <button id="desktop-btn-clear-term" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 hover:text-white cursor-pointer transition-colors">Clear Screen</button>
           </div>
         </div>
-        <div class="connection-log-stream p-3 rounded-2xl bg-black/80 border border-slate-800 h-44 overflow-y-auto space-y-1 font-mono text-[11px] select-text">
-          <!-- Populated by ConnectionManager -->
+
+        <!-- Terminal Output Console Window -->
+        <div id="desktop-terminal-screen" class="p-3 rounded-xl bg-black border border-slate-800/90 h-36 overflow-y-auto space-y-1 font-mono text-[11px] select-text transition-all duration-200">
+          <div class="text-emerald-400 font-bold">✔ INTRAMOVE In-App Web Terminal Engine Active.</div>
+          <div class="text-slate-400">Commands execute directly on Raspberry Pi in ~/intra_move using your SSH credentials.</div>
+        </div>
+
+        <!-- Quick Action Chips (AMR frequent scripts & diagnostics) -->
+        <div class="flex flex-wrap items-center gap-1.5 text-[10px] pt-0.5">
+          <span class="text-slate-500 font-bold">Quick:</span>
+          <button type="button" class="quick-term-btn px-2 py-0.5 rounded-md bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 cursor-pointer font-bold">python3 ~/intra_move/amr_all_in_one.py</button>
+          <button type="button" class="quick-term-btn px-2 py-0.5 rounded-md bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 cursor-pointer font-bold">python3 ~/intra_move/tof_obstacle.py</button>
+          <button type="button" class="quick-term-btn px-2 py-0.5 rounded-md bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 cursor-pointer font-bold">python3 ~/intra_move/test_all_ultrasonic.py</button>
+          <button type="button" class="quick-term-btn px-2 py-0.5 rounded-md bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 cursor-pointer">python3 ~/intra_move/servo_pca.py</button>
+          <button type="button" class="quick-term-btn px-2 py-0.5 rounded-md bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 cursor-pointer">python3 ~/intra_move/leds.py</button>
+          <button type="button" class="quick-term-btn px-2 py-0.5 rounded-md bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 cursor-pointer font-bold">killall python3</button>
+          <button type="button" class="quick-term-btn px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 cursor-pointer">ls -lah ~/intra_move</button>
+          <button type="button" class="quick-term-btn px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 cursor-pointer">pip list</button>
+          <button type="button" class="quick-term-btn px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 cursor-pointer">vcgencmd measure_temp</button>
+          <button type="button" class="quick-term-btn px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 cursor-pointer">pwd</button>
+          <button type="button" class="quick-term-btn px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 cursor-pointer">clear</button>
+        </div>
+
+        <!-- Command Input Row -->
+        <div class="flex items-center gap-2 pt-1">
+          <span class="text-cyan-400 text-xs font-bold shrink-0">$</span>
+          <input type="text" id="desktop-term-input" placeholder="Type Linux command (e.g. ls -la, python3 ...) and press Enter..." class="flex-1 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400 placeholder:text-slate-600 font-mono" autocomplete="off" spellcheck="false" />
+          <button id="desktop-btn-term-run" class="px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold cursor-pointer shrink-0 flex items-center gap-1">
+            <span>Run</span>
+            <span class="material-symbols-outlined text-xs">play_arrow</span>
+          </button>
         </div>
       </div>
 

@@ -87,10 +87,14 @@ export class AdminStudioManager {
   // DOM INITIALIZATION
   // --------------------------------------------------------------------------
   initDOM() {
-    // Populate IP input field
+    // Populate IP and Password input fields
     const ipInput = document.getElementById('admin-input-pi-ip');
     if (ipInput) {
       ipInput.value = this.piIp;
+    }
+    const passInput = document.getElementById('admin-input-pi-pass');
+    if (passInput) {
+      passInput.value = connectionManager.piPass || '';
     }
 
     this.updateSshBadges();
@@ -133,7 +137,7 @@ export class AdminStudioManager {
       }
     });
 
-    // 2. IP Configuration & Connection Testing
+    // 2. IP & Password Configuration & Connection Testing
     const ipInput = document.getElementById('admin-input-pi-ip');
     if (ipInput) {
       ipInput.addEventListener('input', (e) => {
@@ -141,11 +145,21 @@ export class AdminStudioManager {
       });
     }
 
+    const passInput = document.getElementById('admin-input-pi-pass');
+    if (passInput) {
+      passInput.addEventListener('change', (e) => {
+        connectionManager.setPass(e.target.value.trim());
+      });
+    }
+
     const btnSaveIp = document.getElementById('admin-btn-save-ip');
     if (btnSaveIp && ipInput) {
       btnSaveIp.addEventListener('click', () => {
+        if (passInput) {
+          connectionManager.setPass(passInput.value.trim());
+        }
         this.setPiIp(ipInput.value.trim(), true);
-        this.showToast(`✅ Raspberry Pi IP updated to: ${this.piIp || '(empty)'}`);
+        this.showToast(`✅ Raspberry Pi host & credentials saved: ${this.piIp || '(empty)'}`);
       });
     }
 
@@ -596,9 +610,8 @@ export class AdminStudioManager {
         respEl.innerHTML = `${out ? this.escapeHTML(out) : ''}${err ? `<span class="text-amber-400">\n${this.escapeHTML(err)}</span>` : ''}`;
       }
     } else {
-      // Fallback local response
-      const response = this.computeCommandResponse(trimmed);
-      respEl.innerHTML = response;
+      const errMsg = (res && res.error) || 'Failed to execute command on Raspberry Pi.';
+      respEl.innerHTML = `<span class="text-rose-400 font-bold">❌ ${this.escapeHTML(errMsg)}</span>`;
     }
 
     termBody.appendChild(respEl);

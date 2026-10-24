@@ -25,3 +25,9 @@ dist-ssr
 
 # Large archives
 *.zip
+
+# Local Raspberry Pi credentials and temp askpass
+.pi_ip
+.pi_user
+.pi_pass
+.askpass.bat

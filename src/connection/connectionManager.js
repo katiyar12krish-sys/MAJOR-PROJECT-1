@@ -9,21 +9,25 @@
 const STORAGE_KEYS = {
   PI_IP: 'intramove_pi_ip',
   PI_USER: 'intramove_pi_user',
+  PI_PASS: 'intramove_pi_pass',
   SSH_PORT: 'intramove_pi_ssh_port',
   WS_PORT: 'intramove_pi_port',
   LOGS: 'intramove_connection_logs_v1',
   HEARTBEAT: 'intramove_auto_heartbeat',
-  REMOTE_DIR: 'intramove_pi_remote_dir'
+  REMOTE_DIR: 'intramove_pi_remote_dir',
+  CACHED_FILES: 'intramove_cached_remote_files',
+  CACHED_CONTENTS: 'intramove_cached_file_contents'
 };
 
 export class ConnectionManager {
   constructor() {
     this.piIp = localStorage.getItem(STORAGE_KEYS.PI_IP) || localStorage.getItem('intramove_pi_ssh_ip') || '';
     this.piUser = localStorage.getItem(STORAGE_KEYS.PI_USER) || 'major';
+    this.piPass = localStorage.getItem(STORAGE_KEYS.PI_PASS) || '';
     this.sshPort = localStorage.getItem(STORAGE_KEYS.SSH_PORT) || '22';
     this.wsPort = localStorage.getItem(STORAGE_KEYS.WS_PORT) || '8765';
     this.webPort = window.location.port || '5173';
-    this.remoteDir = localStorage.getItem(STORAGE_KEYS.REMOTE_DIR) || '~/intramove';
+    this.remoteDir = localStorage.getItem(STORAGE_KEYS.REMOTE_DIR) || '~/intra_move';
 
     this.isSshConnected = false;
     this.isWsConnected = false;
@@ -33,7 +37,8 @@ export class ConnectionManager {
 
     this.logs = this.loadLogs();
     this.libraries = [];
-    this.remoteFiles = [];
+    this.remoteFiles = this.loadCachedFiles();
+    this.cachedContents = this.loadCachedContents();
     this.channel = null;
     this.heartbeatTimer = null;
     this.isChecking = false;
@@ -58,6 +63,9 @@ export class ConnectionManager {
         }
         if (data.user) {
           this.setUser(data.user, false);
+        }
+        if (data.password && !this.piPass) {
+          this.setPass(data.password, false);
         }
       }
     } catch (_) {}
@@ -100,6 +108,12 @@ export class ConnectionManager {
 
     if (data.type === 'IP_CHANGED') {
       this.piIp = data.piIp;
+      this.updateAllUIs();
+    } else if (data.type === 'USER_CHANGED') {
+      this.piUser = data.piUser;
+      this.updateAllUIs();
+    } else if (data.type === 'PASS_CHANGED') {
+      this.piPass = data.piPass;
       this.updateAllUIs();
     } else if (data.type === 'STATUS_UPDATE') {
       this.isSshConnected = data.isSshConnected;
@@ -156,8 +170,29 @@ export class ConnectionManager {
   }
 
   // --------------------------------------------------------------------------
-  // IP, USER & CONNECTION CONTROL
+  // IP, USER, PASSWORD & CONNECTION CONTROL
   // --------------------------------------------------------------------------
+  setPass(pass, syncToDisk = true) {
+    const cleanPass = (pass || '').trim();
+    if (cleanPass === this.piPass && !syncToDisk) return;
+    this.piPass = cleanPass;
+    localStorage.setItem(STORAGE_KEYS.PI_PASS, cleanPass);
+
+    if (syncToDisk) {
+      fetch('/api/pi/save-ip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: this.piIp, user: this.piUser, password: cleanPass })
+      }).catch(() => {});
+    }
+
+    if (cleanPass) {
+      this.addLog(`SSH Password configured for [${this.piUser}@${this.piIp || 'Pi'}]. Ready for direct remote commands & library scan.`, 'success', 'AUTH');
+    }
+    this.broadcast({ type: 'PASS_CHANGED', piPass: this.piPass });
+    this.updateAllUIs();
+  }
+
   setIp(ipOrUserHost, syncToDisk = true) {
     let raw = (ipOrUserHost || '').trim();
     if (raw.includes('@')) {
@@ -187,7 +222,7 @@ export class ConnectionManager {
       fetch('/api/pi/save-ip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip: cleanIp, user: this.piUser })
+        body: JSON.stringify({ ip: cleanIp, user: this.piUser, password: this.piPass })
       }).catch(() => {});
     }
 
@@ -209,7 +244,7 @@ export class ConnectionManager {
       fetch('/api/pi/save-ip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip: this.piIp, user: cleanUser })
+        body: JSON.stringify({ ip: this.piIp, user: cleanUser, password: this.piPass })
       }).catch(() => {});
     }
 
@@ -325,51 +360,141 @@ export class ConnectionManager {
   }
 
   // --------------------------------------------------------------------------
-  // REMOTE PI FILESYSTEM & LIBRARIES
+  // REMOTE PI FILESYSTEM & CACHE MEMORY
   // --------------------------------------------------------------------------
-  async fetchRemoteFiles(dir = '~/intramove') {
+  loadCachedFiles() {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEYS.CACHED_FILES);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    // Seed default scripts discovered from user's Raspberry Pi
+    return [
+      { name: 'amr_all_in_one.py', size: 14200, isDir: false },
+      { name: 'tof_obstacle.py', size: 6850, isDir: false },
+      { name: 'servo_pca.py', size: 5400, isDir: false },
+      { name: 'test_all_ultrasonic.py', size: 4200, isDir: false },
+      { name: 'leds.py', size: 2300, isDir: false },
+      { name: 'test_four_ultrasonic.py', size: 3100, isDir: false },
+      { name: 'utils.py', size: 3800, isDir: false },
+      { name: 'requirements.txt', size: 850, isDir: false }
+    ];
+  }
+
+  loadCachedContents() {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEYS.CACHED_CONTENTS);
+      if (cached) return JSON.parse(cached);
+    } catch (_) {}
+    return {};
+  }
+
+  saveCachedContent(filename, content) {
+    if (!filename) return;
+    this.cachedContents[filename] = content;
+    try {
+      localStorage.setItem(STORAGE_KEYS.CACHED_CONTENTS, JSON.stringify(this.cachedContents));
+    } catch (_) {}
+  }
+
+  getCachedContent(filename) {
+    return this.cachedContents[filename] || null;
+  }
+
+  setRemoteDir(dir) {
+    if (!dir) return;
+    this.remoteDir = dir.trim();
+    try {
+      localStorage.setItem(STORAGE_KEYS.REMOTE_DIR, this.remoteDir);
+    } catch (_) {}
+    this.updateAllUIs();
+  }
+
+  async fetchRemoteFiles(dir = null) {
+    const targetDir = (dir || this.remoteDir || '~/intra_move').trim();
+    this.setRemoteDir(targetDir);
+
     if (!this.piIp) {
       this.addLog('⚠️ Cannot fetch remote files: No IP configured.', 'warn', 'REMOTE');
-      return { success: false, error: 'No IP configured' };
+      return { success: false, error: 'No IP configured', files: this.remoteFiles };
     }
 
-    this.addLog(`🔄 Connecting to ${this.piUser}@${this.piIp} ➔ Reading folder ${dir}...`, 'info', 'REMOTE');
+    this.addLog(`🔄 Connecting to ${this.piUser}@${this.piIp} ➔ Reading folder ${targetDir}...`, 'info', 'REMOTE');
     try {
-      const res = await fetch(`/api/pi/list-remote-files?ip=${encodeURIComponent(this.piIp)}&user=${encodeURIComponent(this.piUser)}&port=${this.sshPort}&dir=${encodeURIComponent(dir)}`);
+      const res = await fetch(`/api/pi/list-remote-files?ip=${encodeURIComponent(this.piIp)}&user=${encodeURIComponent(this.piUser)}&port=${this.sshPort}&dir=${encodeURIComponent(targetDir)}&pass=${encodeURIComponent(this.piPass || '')}`);
       const data = await res.json();
 
       if (data.success && Array.isArray(data.files)) {
         this.remoteFiles = data.files;
-        this.addLog(`🟢 Successfully synced ${data.files.length} files from ${this.piUser}@${this.piIp}:${dir}!`, 'success', 'REMOTE');
+        if (data.dir) this.setRemoteDir(data.dir);
+        try {
+          localStorage.setItem(STORAGE_KEYS.CACHED_FILES, JSON.stringify(this.remoteFiles));
+        } catch (_) {}
+        this.addLog(`🟢 Successfully synced & cached ${data.files.length} files from ${this.piUser}@${this.piIp}:${targetDir}!`, 'success', 'REMOTE');
+        this.renderRemoteFilesUI();
         window.dispatchEvent(new CustomEvent('intramove_remote_files_synced', { detail: data }));
         return data;
       } else {
         const errMsg = data.error || 'Failed to list files';
         this.addLog(`❌ Could not fetch files: ${errMsg}`, 'error', 'REMOTE');
-        if (data.needKey) {
-          this.addLog(`💡 Run "Open PowerShell SSH" to login with password or setup ssh-copy-id.`, 'warn', 'SSH');
+        if (data.needKey && !this.piPass) {
+          this.addLog(`💡 Enter your Raspberry Pi password above in the "Pass:" field and try again.`, 'warn', 'AUTH');
         }
-        return data;
+        return { ...data, files: this.remoteFiles };
       }
     } catch (err) {
       this.addLog(`❌ Remote file sync error: ${err.message}`, 'error', 'REMOTE');
-      return { success: false, error: err.message };
+      return { success: false, error: err.message, files: this.remoteFiles };
     }
   }
 
-  async readRemoteFile(filename) {
-    if (!this.piIp || !filename) return null;
-    try {
-      const res = await fetch(`/api/pi/read-remote-file?ip=${encodeURIComponent(this.piIp)}&user=${encodeURIComponent(this.piUser)}&port=${this.sshPort}&file=${encodeURIComponent(filename)}`);
-      return await res.json();
-    } catch (err) {
-      return { success: false, error: err.message };
+  async readRemoteFile(filename, dir = null) {
+    if (!filename) return null;
+    const targetDir = (dir || this.remoteDir || '~/intra_move').trim();
+
+    // Check online read
+    if (this.piIp) {
+      try {
+        const res = await fetch(`/api/pi/read-remote-file?ip=${encodeURIComponent(this.piIp)}&user=${encodeURIComponent(this.piUser)}&port=${this.sshPort}&dir=${encodeURIComponent(targetDir)}&file=${encodeURIComponent(filename)}&pass=${encodeURIComponent(this.piPass || '')}`);
+        const data = await res.json();
+        if (data && data.success && typeof data.content === 'string') {
+          this.saveCachedContent(filename, data.content);
+          return data;
+        }
+      } catch (_) {}
     }
+
+    // Fallback to cache memory
+    const cached = this.getCachedContent(filename);
+    if (cached !== null) {
+      return { success: true, filename, content: cached, isCached: true };
+    }
+    return { success: false, filename, error: 'File content not yet loaded from Pi' };
   }
 
-  async writeRemoteFile(filename, content) {
-    if (!this.piIp || !filename) return { success: false, error: 'No IP or filename' };
-    this.addLog(`💾 Pushing ~/intramove/${filename} to Raspberry Pi...`, 'info', 'REMOTE');
+  async writeRemoteFile(filename, content, dir = null) {
+    if (!filename) return { success: false, error: 'No filename specified' };
+    const targetDir = (dir || this.remoteDir || '~/intra_move').trim();
+
+    // Always save into local cache memory first
+    this.saveCachedContent(filename, content);
+
+    // Make sure file is in remoteFiles list
+    if (!this.remoteFiles.find(f => f.name === filename)) {
+      this.remoteFiles.push({ name: filename, size: content.length, isDir: false });
+      try {
+        localStorage.setItem(STORAGE_KEYS.CACHED_FILES, JSON.stringify(this.remoteFiles));
+      } catch (_) {}
+    }
+
+    if (!this.piIp) {
+      this.addLog(`💾 Saved ${filename} locally in browser cache (Pi offline).`, 'warn', 'REMOTE');
+      return { success: true, filename, size: content.length, cachedOnly: true };
+    }
+
+    this.addLog(`💾 Pushing ${targetDir}/${filename} to Raspberry Pi...`, 'info', 'REMOTE');
     try {
       const res = await fetch('/api/pi/write-remote-file', {
         method: 'POST',
@@ -378,21 +503,59 @@ export class ConnectionManager {
           ip: this.piIp,
           user: this.piUser,
           port: this.sshPort,
+          dir: targetDir,
           filename,
-          content
+          content,
+          password: this.piPass || ''
         })
       });
       const data = await res.json();
       if (data.success) {
-        this.addLog(`✅ Saved ~/intramove/${filename} (${data.size} bytes) directly on Pi!`, 'success', 'REMOTE');
+        this.addLog(`✅ Saved & Uploaded ${targetDir}/${filename} (${data.size} bytes) directly on Pi!`, 'success', 'REMOTE');
       } else {
-        this.addLog(`❌ Save failed for ~/intramove/${filename}: ${data.error}`, 'error', 'REMOTE');
+        this.addLog(`❌ Save failed for ${targetDir}/${filename}: ${data.error}`, 'error', 'REMOTE');
       }
       return data;
     } catch (err) {
       this.addLog(`❌ Save error: ${err.message}`, 'error', 'REMOTE');
       return { success: false, error: err.message };
     }
+  }
+
+  renderRemoteFilesUI() {
+    const containers = document.querySelectorAll('.pi-remote-files-container');
+    if (!containers || containers.length === 0) return;
+
+    const files = this.remoteFiles || [];
+    containers.forEach(container => {
+      if (files.length === 0) {
+        container.innerHTML = `<div class="p-3 text-center text-slate-500 text-xs">No files synced yet. Click "Sync Files" to fetch.</div>`;
+        return;
+      }
+
+      let html = `<div class="flex flex-wrap gap-1.5 p-1 max-h-40 overflow-y-auto">`;
+      files.forEach(f => {
+        const isPy = f.name.endsWith('.py');
+        const badgeColor = isPy ? 'border-cyan-700/80 bg-cyan-950/40 text-cyan-300' : 'border-slate-700 bg-slate-800/80 text-slate-300';
+        const icon = f.isDir ? 'folder' : (isPy ? 'code' : 'description');
+        const sizeKb = f.size ? `${(f.size / 1024).toFixed(1)} KB` : '';
+
+        html += `
+          <div class="file-chip group flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border ${badgeColor} text-xs font-mono transition-all hover:scale-[1.02] cursor-pointer" data-file-name="${this.escapeHTML(f.name)}">
+            <span class="material-symbols-outlined text-sm text-cyan-400">${icon}</span>
+            <span class="font-bold text-white">${this.escapeHTML(f.name)}</span>
+            ${sizeKb ? `<span class="text-[10px] text-slate-400">(${sizeKb})</span>` : ''}
+            ${isPy ? `
+              <button type="button" class="btn-quick-run-file ml-1 p-0.5 rounded hover:bg-cyan-600 text-cyan-300 hover:text-white transition-colors" title="Run on Pi" data-run-file="${this.escapeHTML(f.name)}">
+                <span class="material-symbols-outlined text-xs">play_arrow</span>
+              </button>
+            ` : ''}
+          </div>
+        `;
+      });
+      html += `</div>`;
+      container.innerHTML = html;
+    });
   }
 
   async fetchLibraries() {
@@ -403,7 +566,7 @@ export class ConnectionManager {
 
     this.addLog(`🔍 Querying installed Python libraries on Pi (${this.piUser}@${this.piIp})...`, 'info', 'PIP');
     try {
-      const res = await fetch(`/api/pi/list-libraries?ip=${encodeURIComponent(this.piIp)}&user=${encodeURIComponent(this.piUser)}&port=${this.sshPort}`);
+      const res = await fetch(`/api/pi/list-libraries?ip=${encodeURIComponent(this.piIp)}&user=${encodeURIComponent(this.piUser)}&port=${this.sshPort}&pass=${encodeURIComponent(this.piPass || '')}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.libraries)) {
         this.libraries = data.libraries;
@@ -412,11 +575,17 @@ export class ConnectionManager {
         window.dispatchEvent(new CustomEvent('intramove_libraries_synced', { detail: data.libraries }));
         return data;
       } else {
-        this.addLog(`❌ Failed to scan libraries: ${data.error || 'Check SSH connection'}`, 'error', 'PIP');
+        const errDetail = data.error || 'Check SSH connection';
+        this.addLog(`❌ Failed to scan libraries: ${errDetail}`, 'error', 'PIP');
+        if (data.needKey && !this.piPass) {
+          this.addLog(`🔑 Enter your Raspberry Pi password in the "Pass:" field above and click "Scan Pi Libraries" again.`, 'warn', 'AUTH');
+        }
+        this.renderLibrariesUI(errDetail);
         return data;
       }
     } catch (err) {
       this.addLog(`❌ Libraries scan error: ${err.message}`, 'error', 'PIP');
+      this.renderLibrariesUI(err.message);
       return { success: false, error: err.message };
     }
   }
@@ -442,7 +611,8 @@ export class ConnectionManager {
           ip: this.piIp,
           user: this.piUser || 'major',
           port: this.sshPort || 22,
-          cmd: `cd ~/intramove 2>/dev/null || cd /home/${this.piUser}/intramove 2>/dev/null; ${trimmedCmd}`
+          cmd: `cd ${this.remoteDir || '~/intra_move'} 2>/dev/null || cd ~/intra_move 2>/dev/null || cd ~/intramove 2>/dev/null || cd /home/${this.piUser}/intra_move 2>/dev/null; ${trimmedCmd}`,
+          password: this.piPass || ''
         })
       });
       const data = await res.json();
@@ -458,28 +628,229 @@ export class ConnectionManager {
     }
   }
 
-  renderLibrariesUI() {
+  // --------------------------------------------------------------------------
+  // REMOTE PI PACKAGE MANAGEMENT (INSTALL / UNINSTALL / LIST)
+  // --------------------------------------------------------------------------
+  async installLibrary(pkgName) {
+    const pkg = (pkgName || '').trim();
+    if (!pkg) return { success: false, error: 'No package name specified' };
+    if (!this.piIp) {
+      this.addLog('⚠️ Cannot install library: No IP configured.', 'warn', 'PIP');
+      return { success: false, error: 'No IP configured' };
+    }
+
+    this.addLog(`📦 Running: pip install "${pkg}" on ${this.piUser}@${this.piIp}...`, 'info', 'PIP');
+    try {
+      const res = await fetch('/api/pi/install-library', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ip: this.piIp,
+          user: this.piUser,
+          port: this.sshPort,
+          password: this.piPass || '',
+          pkg
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.addLog(`✅ Successfully installed '${pkg}' on Raspberry Pi!`, 'success', 'PIP');
+        await this.fetchLibraries();
+      } else {
+        const errDetail = data.error || (data.stderr || 'Installation failed');
+        this.addLog(`❌ Failed to install '${pkg}': ${errDetail}`, 'error', 'PIP');
+      }
+      return data;
+    } catch (err) {
+      this.addLog(`❌ Install error: ${err.message}`, 'error', 'PIP');
+      return { success: false, error: err.message };
+    }
+  }
+
+  async uninstallLibrary(pkgName) {
+    const pkg = (pkgName || '').trim();
+    if (!pkg) return { success: false, error: 'No package name specified' };
+    if (!this.piIp) {
+      this.addLog('⚠️ Cannot uninstall library: No IP configured.', 'warn', 'PIP');
+      return { success: false, error: 'No IP configured' };
+    }
+
+    this.addLog(`🗑️ Running: pip uninstall -y "${pkg}" on ${this.piUser}@${this.piIp}...`, 'info', 'PIP');
+    try {
+      const res = await fetch('/api/pi/uninstall-library', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ip: this.piIp,
+          user: this.piUser,
+          port: this.sshPort,
+          password: this.piPass || '',
+          pkg
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.addLog(`✅ Successfully uninstalled '${pkg}' from Raspberry Pi!`, 'success', 'PIP');
+        await this.fetchLibraries();
+      } else {
+        const errDetail = data.error || (data.stderr || 'Uninstall failed');
+        this.addLog(`❌ Failed to uninstall '${pkg}': ${errDetail}`, 'error', 'PIP');
+      }
+      return data;
+    } catch (err) {
+      this.addLog(`❌ Uninstall error: ${err.message}`, 'error', 'PIP');
+      return { success: false, error: err.message };
+    }
+  }
+
+  renderLibrariesUI(errorMessage = null) {
     const containers = document.querySelectorAll('.pi-libraries-container');
     if (containers.length === 0) return;
 
-    const html = this.libraries.length === 0
-      ? `<div class="p-3 text-center text-slate-500 font-mono text-xs">No libraries scanned yet. Click "Scan Pi Libraries" to load.</div>`
-      : `
-        <div class="space-y-1 font-mono text-xs max-h-56 overflow-y-auto pr-1">
-          <div class="text-[10px] text-slate-400 font-bold uppercase pb-1 border-b border-slate-800 flex justify-between">
-            <span>Package (${this.libraries.length} found)</span>
-            <span>Version</span>
+    let html = '';
+    const installBarHtml = `
+      <!-- 1-Click Install New Python Library Bar -->
+      <div class="p-2.5 rounded-xl bg-purple-950/30 border border-purple-800/50 space-y-2">
+        <div class="flex items-center gap-2">
+          <input type="text" id="lib-install-name" placeholder="Install new package (e.g. opencv-python, smbus2, vl53l5cx)..." class="flex-1 px-3 py-1.5 text-xs rounded-xl bg-black/80 border border-purple-700/60 text-white focus:outline-none focus:border-purple-400 placeholder:text-slate-500 font-mono" />
+          <button id="lib-install-btn" class="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shrink-0 transition-all shadow-sm">
+            <span class="material-symbols-outlined text-sm">add_box</span>
+            <span>+ Install</span>
+          </button>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 font-mono">
+          <span class="text-slate-500 font-bold">Popular:</span>
+          <button type="button" class="lib-quick-suggest text-cyan-300 hover:text-cyan-200 underline cursor-pointer">numpy</button>
+          <button type="button" class="lib-quick-suggest text-cyan-300 hover:text-cyan-200 underline cursor-pointer">opencv-python</button>
+          <button type="button" class="lib-quick-suggest text-cyan-300 hover:text-cyan-200 underline cursor-pointer">smbus2</button>
+          <button type="button" class="lib-quick-suggest text-cyan-300 hover:text-cyan-200 underline cursor-pointer">spidev</button>
+          <button type="button" class="lib-quick-suggest text-cyan-300 hover:text-cyan-200 underline cursor-pointer">RPi.GPIO</button>
+          <button type="button" class="lib-quick-suggest text-cyan-300 hover:text-cyan-200 underline cursor-pointer">pyserial</button>
+        </div>
+      </div>
+    `;
+
+    if (errorMessage) {
+      html = `
+        ${installBarHtml}
+        <div class="p-3 rounded-xl bg-rose-950/40 border border-rose-800/80 text-rose-300 font-mono text-xs space-y-1.5">
+          <div class="font-bold flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm">lock</span>
+            <span>Authentication / Scan Error</span>
           </div>
-          ${this.libraries.map(pkg => `
-            <div class="flex items-center justify-between py-1 px-2 rounded-lg bg-black/40 border border-slate-800/80 hover:border-cyan-500/50 text-[11px]">
-              <span class="text-cyan-300 font-bold truncate">${this.escapeHTML(pkg.name)}</span>
-              <span class="text-emerald-400 shrink-0 font-mono">${this.escapeHTML(pkg.version)}</span>
-            </div>
-          `).join('')}
+          <div class="text-[11px] leading-relaxed text-slate-300">${this.escapeHTML(errorMessage)}</div>
+          ${!this.piPass ? '<div class="text-[11px] text-amber-300 pt-1 font-semibold">👉 Enter your Pi password in the "Pass:" field above and click "Scan Pi Libraries" again.</div>' : ''}
         </div>
       `;
+    } else if (this.libraries.length === 0) {
+      html = `
+        ${installBarHtml}
+        <div class="p-4 text-center text-slate-500 font-mono text-xs space-y-1">
+          <div>${!this.piPass ? 'Enter your Pi password in the "Pass:" field above and click "Scan Pi Libraries".' : 'No libraries loaded yet. Click "Scan Pi Libraries" or install a package above.'}</div>
+        </div>
+      `;
+    } else {
+      html = `
+        ${installBarHtml}
+        <div class="space-y-2 font-mono text-xs">
+          <div class="flex items-center justify-between gap-2 pb-1.5 border-b border-slate-800">
+            <div class="text-[11px] text-purple-300 font-bold">
+              Found ${this.libraries.length} Installed Packages
+            </div>
+            <input type="text" id="lib-search-input" placeholder="Search installed packages..." class="px-2.5 py-1 text-[11px] rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-purple-400 placeholder:text-slate-500 w-52 font-mono" />
+          </div>
+          <div id="lib-package-list" class="space-y-1 max-h-52 overflow-y-auto pr-1">
+            ${this.renderPackageRows(this.libraries)}
+          </div>
+        </div>
+      `;
+    }
 
-    containers.forEach(c => { c.innerHTML = html; });
+    containers.forEach(c => {
+      c.innerHTML = html;
+
+      // Search Filter
+      const searchInput = c.querySelector('#lib-search-input');
+      const listContainer = c.querySelector('#lib-package-list');
+      if (searchInput && listContainer) {
+        searchInput.addEventListener('input', (e) => {
+          const query = (e.target.value || '').toLowerCase().trim();
+          const filtered = this.libraries.filter(p => (p.name || '').toLowerCase().includes(query));
+          listContainer.innerHTML = this.renderPackageRows(filtered);
+          this.bindRowDeleteButtons(listContainer);
+        });
+      }
+
+      // Install Button
+      const installInput = c.querySelector('#lib-install-name');
+      const installBtn = c.querySelector('#lib-install-btn');
+      if (installInput && installBtn) {
+        const handleInstall = async () => {
+          const pkg = installInput.value.trim();
+          if (!pkg) return;
+          installBtn.disabled = true;
+          installBtn.innerHTML = `<span class="material-symbols-outlined text-xs animate-spin">refresh</span><span>Installing...</span>`;
+          await this.installLibrary(pkg);
+          installBtn.disabled = false;
+          installBtn.innerHTML = `<span class="material-symbols-outlined text-xs">add_box</span><span>+ Install</span>`;
+          installInput.value = '';
+        };
+
+        installBtn.addEventListener('click', handleInstall);
+        installInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') handleInstall();
+        });
+      }
+
+      // Quick Suggest Chips
+      c.querySelectorAll('.lib-quick-suggest').forEach(chip => {
+        chip.addEventListener('click', () => {
+          if (installInput) {
+            installInput.value = chip.innerText.trim();
+            installInput.focus();
+          }
+        });
+      });
+
+      // Bind initial delete/uninstall buttons
+      if (listContainer) {
+        this.bindRowDeleteButtons(listContainer);
+      }
+    });
+  }
+
+  bindRowDeleteButtons(container) {
+    if (!container) return;
+    container.querySelectorAll('.btn-uninstall-pkg').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const pkg = btn.getAttribute('data-pkg');
+        if (!pkg) return;
+        const confirmed = confirm(`Are you sure you want to uninstall '${pkg}' from your Raspberry Pi?`);
+        if (confirmed) {
+          btn.disabled = true;
+          btn.innerHTML = `<span class="material-symbols-outlined text-xs animate-spin">refresh</span>`;
+          await this.uninstallLibrary(pkg);
+        }
+      });
+    });
+  }
+
+  renderPackageRows(pkgList) {
+    if (!pkgList || pkgList.length === 0) {
+      return `<div class="p-2 text-center text-slate-500 text-[11px]">No matching packages found.</div>`;
+    }
+    return pkgList.map(pkg => `
+      <div class="flex items-center justify-between py-1 px-2.5 rounded-lg bg-black/40 border border-slate-800/80 hover:border-purple-500/50 text-[11px] transition-colors group">
+        <span class="text-cyan-300 font-bold truncate">${this.escapeHTML(pkg.name)}</span>
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="text-emerald-400 font-mono bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.2 rounded text-[10px]">${this.escapeHTML(pkg.version || 'installed')}</span>
+          <button type="button" class="btn-uninstall-pkg text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-rose-950/50 cursor-pointer transition-colors" data-pkg="${this.escapeHTML(pkg.name)}" title="Uninstall ${this.escapeHTML(pkg.name)} from Pi">
+            <span class="material-symbols-outlined text-xs">delete</span>
+          </button>
+        </div>
+      </div>
+    `).join('');
   }
 
   // --------------------------------------------------------------------------
@@ -514,15 +885,28 @@ export class ConnectionManager {
       }
     }
 
-    // Sync User and IP Input fields
+    // Sync User, Password, and IP Input fields
     const mobileInputUser = document.getElementById('mobile-input-pi-user');
     const desktopInputUser = document.getElementById('desktop-input-pi-user');
+    const mobileInputPass = document.getElementById('mobile-input-pi-pass');
+    const desktopInputPass = document.getElementById('desktop-input-pi-pass');
+
     if (mobileInputUser && mobileInputUser.value !== this.piUser) {
       mobileInputUser.value = this.piUser;
     }
     if (desktopInputUser && desktopInputUser.value !== this.piUser) {
       desktopInputUser.value = this.piUser;
     }
+    if (mobileInputPass && mobileInputPass.value !== this.piPass) {
+      mobileInputPass.value = this.piPass;
+    }
+    if (desktopInputPass && desktopInputPass.value !== this.piPass) {
+      desktopInputPass.value = this.piPass;
+    }
+
+    document.querySelectorAll('[data-pi-ip-badge]').forEach(el => {
+      el.innerText = ip || '192.168.0.xxx';
+    });
 
     if (mobileCodeIpBadge) {
       mobileCodeIpBadge.innerText = ip ? `${this.piUser}@${ip}:${this.sshPort}` : 'Not Configured';

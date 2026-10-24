@@ -17,10 +17,19 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // Desktop Pi Connection & Activity Monitor Modal Handlers
+  // Desktop Pi Connection & Activity Monitor Modal Handlers
   const btnDesktopPiStatus = document.getElementById('btn-desktop-pi-status');
   const desktopConnModal = document.getElementById('desktop-conn-modal');
+  const desktopConnCard = document.getElementById('desktop-conn-card');
   const btnCloseDesktopConnModal = document.getElementById('btn-close-desktop-conn-modal');
+  const btnToggleActivityLogs = document.getElementById('btn-toggle-activity-logs');
+  const desktopActivityLogsDrawer = document.getElementById('desktop-activity-logs-drawer');
+  const btnCloseActivityLogsDrawer = document.getElementById('btn-close-activity-logs-drawer');
+  const btnToggleModalFullscreen = document.getElementById('btn-toggle-modal-fullscreen');
+  const iconModalFullscreen = document.getElementById('icon-modal-fullscreen');
+
   const desktopInputPiIp = document.getElementById('desktop-input-pi-ip');
+  const desktopInputPiDir = document.getElementById('desktop-input-pi-dir');
   const desktopBtnSaveIp = document.getElementById('desktop-btn-save-ip');
   const desktopBtnTestPing = document.getElementById('desktop-btn-test-ping');
   const desktopBtnLaunchPs = document.getElementById('desktop-btn-launch-ps');
@@ -28,17 +37,122 @@ window.addEventListener('DOMContentLoaded', () => {
   const mobileBtnClearConnLogs = document.getElementById('mobile-btn-clear-conn-logs');
 
   const desktopInputUser = document.getElementById('desktop-input-pi-user');
+  const desktopInputPass = document.getElementById('desktop-input-pi-pass');
+  const desktopBtnTogglePass = document.getElementById('desktop-btn-toggle-pass');
+  const desktopPassEyeIcon = document.getElementById('desktop-pass-eye-icon');
   const desktopBtnSyncRemote = document.getElementById('desktop-btn-sync-remote');
   const desktopBtnScanLibs = document.getElementById('desktop-btn-scan-libs');
   const desktopBtnCloseLibs = document.getElementById('desktop-btn-close-libs');
   const desktopLibrariesDrawer = document.getElementById('desktop-libraries-drawer');
 
+  // In-App Interactive Web Terminal Elements
+  const desktopBtnToggleTerminal = document.getElementById('desktop-btn-toggle-terminal');
+  const desktopTerminalDrawer = document.getElementById('desktop-terminal-drawer');
+  const desktopTerminalScreen = document.getElementById('desktop-terminal-screen');
+  const desktopTermInput = document.getElementById('desktop-term-input');
+  const desktopBtnTermRun = document.getElementById('desktop-btn-term-run');
+  const desktopBtnClearTerm = document.getElementById('desktop-btn-clear-term');
+  const desktopBtnTermExpand = document.getElementById('desktop-btn-term-expand');
+  const iconTermExpand = document.getElementById('icon-term-expand');
+  const textTermExpand = document.getElementById('text-term-expand');
+
+  // Remote File Explorer & Code Editor Elements
+  const desktopActiveFileTitle = document.getElementById('desktop-active-file-title');
+  const desktopFileStatusBadge = document.getElementById('desktop-file-status-badge');
+  const desktopCodeEditor = document.getElementById('desktop-code-editor');
+  const desktopEditorStats = document.getElementById('desktop-editor-stats');
+  const desktopEditorTargetPath = document.getElementById('desktop-editor-target-path');
+  const desktopBtnSaveCode = document.getElementById('desktop-btn-save-code');
+  const desktopBtnRunCode = document.getElementById('desktop-btn-run-code');
+  const desktopBtnReloadCode = document.getElementById('desktop-btn-reload-code');
+
+  // Fullscreen State (Inverted: defaults to FULL SCREEN on open, user clicks to shrink)
+  let isModalFullscreen = true;
+
+  function applyModalScreenState(isFull) {
+    if (!desktopConnModal || !desktopConnCard) return;
+    isModalFullscreen = isFull;
+    if (isModalFullscreen) {
+      desktopConnModal.classList.add('p-0');
+      desktopConnModal.classList.remove('p-2', 'sm:p-4');
+      desktopConnCard.classList.remove('max-w-6xl', 'rounded-3xl', 'max-h-[92vh]', 'my-auto');
+      desktopConnCard.classList.add('max-w-none', 'w-full', 'min-h-screen', 'max-h-none', 'rounded-none', 'my-0');
+      if (iconModalFullscreen) {
+        iconModalFullscreen.innerText = 'fullscreen_exit';
+      }
+      if (btnToggleModalFullscreen) {
+        btnToggleModalFullscreen.title = 'Exit Full Screen / Shrink View';
+      }
+    } else {
+      desktopConnModal.classList.remove('p-0');
+      desktopConnModal.classList.add('p-2', 'sm:p-4');
+      desktopConnCard.classList.add('max-w-6xl', 'rounded-3xl', 'max-h-[92vh]', 'my-auto');
+      desktopConnCard.classList.remove('max-w-none', 'w-full', 'min-h-screen', 'max-h-none', 'rounded-none', 'my-0');
+      if (iconModalFullscreen) {
+        iconModalFullscreen.innerText = 'fullscreen';
+      }
+      if (btnToggleModalFullscreen) {
+        btnToggleModalFullscreen.title = 'Expand to Full Screen';
+      }
+    }
+  }
+
+  if (btnToggleModalFullscreen && desktopConnModal && desktopConnCard) {
+    btnToggleModalFullscreen.addEventListener('click', () => {
+      applyModalScreenState(!isModalFullscreen);
+    });
+  }
+
+  // Activity Logs Drawer Toggle
+  if (btnToggleActivityLogs && desktopActivityLogsDrawer) {
+    btnToggleActivityLogs.addEventListener('click', () => {
+      const isHidden = desktopActivityLogsDrawer.classList.contains('hidden');
+      if (isHidden) {
+        desktopActivityLogsDrawer.classList.remove('hidden');
+        connectionManager.renderLogs();
+      } else {
+        desktopActivityLogsDrawer.classList.add('hidden');
+      }
+    });
+  }
+
+  if (btnCloseActivityLogsDrawer && desktopActivityLogsDrawer) {
+    btnCloseActivityLogsDrawer.addEventListener('click', () => {
+      desktopActivityLogsDrawer.classList.add('hidden');
+    });
+  }
+
+  // Terminal Full View Toggle
+  let isTermExpanded = false;
+  if (desktopBtnTermExpand && desktopTerminalScreen) {
+    desktopBtnTermExpand.addEventListener('click', () => {
+      isTermExpanded = !isTermExpanded;
+      if (isTermExpanded) {
+        desktopTerminalScreen.classList.remove('h-36');
+        desktopTerminalScreen.classList.add('h-[55vh]');
+        if (iconTermExpand) iconTermExpand.innerText = 'fullscreen_exit';
+        if (textTermExpand) textTermExpand.innerText = 'Normal View';
+      } else {
+        desktopTerminalScreen.classList.remove('h-[55vh]');
+        desktopTerminalScreen.classList.add('h-36');
+        if (iconTermExpand) iconTermExpand.innerText = 'fullscreen';
+        if (textTermExpand) textTermExpand.innerText = 'Full View';
+      }
+      desktopTerminalScreen.scrollTop = desktopTerminalScreen.scrollHeight;
+    });
+  }
+
   if (btnDesktopPiStatus && desktopConnModal) {
     btnDesktopPiStatus.addEventListener('click', () => {
+      // Pehle badi screen (Full Screen) aayegi, user toggle karke chota kar sakein
+      applyModalScreenState(true);
       desktopConnModal.classList.remove('hidden');
       if (desktopInputPiIp) desktopInputPiIp.value = connectionManager.piIp;
       if (desktopInputUser) desktopInputUser.value = connectionManager.piUser;
+      if (desktopInputPass) desktopInputPass.value = connectionManager.piPass;
+      if (desktopInputPiDir) desktopInputPiDir.value = connectionManager.remoteDir;
       connectionManager.updateAllUIs();
+      connectionManager.renderRemoteFilesUI();
     });
   }
 
@@ -54,10 +168,24 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Password visibility toggle
+  if (desktopBtnTogglePass && desktopInputPass) {
+    desktopBtnTogglePass.addEventListener('click', () => {
+      const isPass = desktopInputPass.type === 'password';
+      desktopInputPass.type = isPass ? 'text' : 'password';
+      if (desktopPassEyeIcon) {
+        desktopPassEyeIcon.innerText = isPass ? 'visibility_off' : 'visibility';
+      }
+    });
+  }
+
   if (desktopBtnSaveIp && desktopInputPiIp) {
     desktopBtnSaveIp.addEventListener('click', () => {
       if (desktopInputUser && desktopInputUser.value) {
         connectionManager.setUser(desktopInputUser.value);
+      }
+      if (desktopInputPass) {
+        connectionManager.setPass(desktopInputPass.value);
       }
       connectionManager.setIp(desktopInputPiIp.value);
     });
@@ -69,15 +197,120 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  if (desktopInputPass) {
+    desktopInputPass.addEventListener('input', () => {
+      connectionManager.piPass = desktopInputPass.value;
+    });
+    desktopInputPass.addEventListener('change', () => {
+      connectionManager.setPass(desktopInputPass.value);
+    });
+  }
+
   if (desktopBtnTestPing) {
     desktopBtnTestPing.addEventListener('click', () => {
       if (desktopInputUser && desktopInputUser.value) {
         connectionManager.setUser(desktopInputUser.value);
       }
+      if (desktopInputPass) {
+        connectionManager.setPass(desktopInputPass.value);
+      }
       if (desktopInputPiIp && desktopInputPiIp.value) {
         connectionManager.setIp(desktopInputPiIp.value);
       }
       connectionManager.checkConnection(false);
+    });
+  }
+
+  // In-App Terminal Toggle & Runner
+  if (desktopBtnToggleTerminal && desktopTerminalDrawer) {
+    desktopBtnToggleTerminal.addEventListener('click', () => {
+      desktopTerminalDrawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if (desktopTermInput) desktopTermInput.focus();
+    });
+  }
+
+  async function executeTerminalCommand(cmdText) {
+    const rawCmd = (cmdText || '').trim();
+    if (!rawCmd) return;
+
+    if (!desktopTerminalScreen) return;
+
+    // Handle clear
+    if (rawCmd === 'clear' || rawCmd === 'cls') {
+      desktopTerminalScreen.innerHTML = `<div class="text-slate-500 font-mono text-[10px]">Terminal cleared.</div>`;
+      return;
+    }
+
+    const user = connectionManager.piUser || 'major';
+    const host = connectionManager.piIp || 'pi';
+
+    // Append Command prompt line
+    const cmdLine = document.createElement('div');
+    cmdLine.className = 'font-mono text-[11px] pt-1';
+    cmdLine.innerHTML = `<span class="text-purple-400 font-bold">${connectionManager.escapeHTML(user)}@${connectionManager.escapeHTML(host)}</span>:<span class="text-cyan-400 font-bold">~/intramove$</span> <span class="text-white font-bold">${connectionManager.escapeHTML(rawCmd)}</span>`;
+    desktopTerminalScreen.appendChild(cmdLine);
+
+    // Indicator
+    const indicator = document.createElement('div');
+    indicator.className = 'text-slate-500 font-mono text-[10px] animate-pulse';
+    indicator.innerHTML = `⏳ Executing on ${user}@${host}...`;
+    desktopTerminalScreen.appendChild(indicator);
+    desktopTerminalScreen.scrollTop = desktopTerminalScreen.scrollHeight;
+
+    // Run command
+    const res = await connectionManager.execRemoteCommand(rawCmd);
+    indicator.remove();
+
+    const outputEl = document.createElement('div');
+    outputEl.className = 'font-mono text-[11px] whitespace-pre-wrap leading-relaxed select-text';
+
+    if (res && res.success) {
+      const out = (res.stdout || '').trim();
+      const err = (res.stderr || '').trim();
+      if (!out && !err) {
+        outputEl.innerHTML = `<span class="text-slate-500 text-[10px]">(Process exited with return code 0, no output)</span>`;
+      } else {
+        outputEl.innerHTML = `${out ? `<span class="text-slate-200">${connectionManager.escapeHTML(out)}</span>` : ''}${err ? `<span class="text-amber-400">\n${connectionManager.escapeHTML(err)}</span>` : ''}`;
+      }
+    } else {
+      const errMsg = (res && res.error) || 'Execution failed';
+      outputEl.innerHTML = `<span class="text-rose-400 font-bold">❌ ${connectionManager.escapeHTML(errMsg)}</span>`;
+    }
+
+    desktopTerminalScreen.appendChild(outputEl);
+    desktopTerminalScreen.scrollTop = desktopTerminalScreen.scrollHeight;
+  }
+
+  if (desktopBtnTermRun && desktopTermInput) {
+    desktopBtnTermRun.addEventListener('click', () => {
+      const cmd = desktopTermInput.value;
+      desktopTermInput.value = '';
+      executeTerminalCommand(cmd);
+    });
+  }
+
+  if (desktopTermInput) {
+    desktopTermInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const cmd = desktopTermInput.value;
+        desktopTermInput.value = '';
+        executeTerminalCommand(cmd);
+      }
+    });
+  }
+
+  // Quick Action Chips in Terminal
+  document.querySelectorAll('.quick-term-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cmd = btn.innerText.trim();
+      if (desktopTermInput) desktopTermInput.value = cmd;
+      executeTerminalCommand(cmd);
+    });
+  });
+
+  if (desktopBtnClearTerm && desktopTerminalScreen) {
+    desktopBtnClearTerm.addEventListener('click', () => {
+      desktopTerminalScreen.innerHTML = `<div class="text-slate-500 font-mono text-[10px]">Terminal cleared.</div>`;
     });
   }
 
@@ -90,11 +323,151 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (desktopBtnSyncRemote) {
-    desktopBtnSyncRemote.addEventListener('click', () => {
-      connectionManager.fetchRemoteFiles('~/intramove');
+  // Directory Input sync
+  if (desktopInputPiDir) {
+    desktopInputPiDir.value = connectionManager.remoteDir;
+    desktopInputPiDir.addEventListener('change', () => {
+      connectionManager.setRemoteDir(desktopInputPiDir.value);
+      if (desktopEditorTargetPath) {
+        desktopEditorTargetPath.innerText = `${connectionManager.remoteDir}/${activeFilename}`;
+      }
     });
   }
+
+  // --------------------------------------------------------------------------
+  // REMOTE FILE EXPLORER & EMBEDDED CODE EDITOR CONTROLLER
+  // --------------------------------------------------------------------------
+  let activeFilename = 'amr_all_in_one.py';
+
+  function updateEditorStats() {
+    if (!desktopCodeEditor || !desktopEditorStats) return;
+    const text = desktopCodeEditor.value || '';
+    const chars = text.length;
+    const lines = text.split('\n').length;
+    desktopEditorStats.innerText = `Characters: ${chars} | Lines: ${lines}`;
+  }
+
+  if (desktopCodeEditor) {
+    desktopCodeEditor.addEventListener('input', updateEditorStats);
+  }
+
+  async function loadRemoteFileIntoEditor(filename) {
+    if (!filename) return;
+    activeFilename = filename;
+
+    if (desktopActiveFileTitle) desktopActiveFileTitle.innerText = filename;
+    if (desktopEditorTargetPath) {
+      desktopEditorTargetPath.innerText = `${connectionManager.remoteDir}/${filename}`;
+    }
+    if (desktopFileStatusBadge) {
+      desktopFileStatusBadge.innerText = 'Loading...';
+      desktopFileStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300';
+    }
+
+    const res = await connectionManager.readRemoteFile(filename, connectionManager.remoteDir);
+    if (desktopCodeEditor) {
+      if (res && res.content) {
+        desktopCodeEditor.value = res.content;
+        if (desktopFileStatusBadge) {
+          desktopFileStatusBadge.innerText = res.isCached ? 'Cached in Memory' : 'Live from Pi';
+          desktopFileStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-cyan-400';
+        }
+      } else {
+        // Sample default code boilerplate for files not yet fetched over network
+        const defaultScript = `#!/usr/bin/env python3\n"""\nINTRAMOVE Autonomous Robot System\nFile: ${filename}\nDirectory: ${connectionManager.remoteDir}\n"""\nimport time\nimport sys\n\ndef main():\n    print("🤖 Executing ${filename} on Raspberry Pi 4...")\n    # Insert your robot logic here\n\nif __name__ == "__main__":\n    main()\n`;
+        desktopCodeEditor.value = defaultScript;
+        connectionManager.saveCachedContent(filename, defaultScript);
+        if (desktopFileStatusBadge) {
+          desktopFileStatusBadge.innerText = 'Template Initialized';
+          desktopFileStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-indigo-950 border border-indigo-800 text-indigo-300';
+        }
+      }
+      updateEditorStats();
+    }
+  }
+
+  // Bind click delegations for remote file chips
+  function setupFileChipsListeners() {
+    document.querySelectorAll('.file-chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-quick-run-file')) return;
+        const fname = chip.getAttribute('data-file-name');
+        if (fname) loadRemoteFileIntoEditor(fname);
+      });
+    });
+
+    document.querySelectorAll('.btn-quick-run-file').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rfile = btn.getAttribute('data-run-file');
+        if (rfile) {
+          executeTerminalCommand(`python3 ${connectionManager.remoteDir}/${rfile}`);
+          if (desktopTerminalDrawer) {
+            desktopTerminalDrawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+      });
+    });
+  }
+
+  // Save / Upload Code to Pi
+  if (desktopBtnSaveCode && desktopCodeEditor) {
+    desktopBtnSaveCode.addEventListener('click', async () => {
+      const code = desktopCodeEditor.value;
+      const originalText = desktopBtnSaveCode.innerHTML;
+      desktopBtnSaveCode.disabled = true;
+      desktopBtnSaveCode.innerHTML = `<span class="material-symbols-outlined text-xs animate-spin">refresh</span><span>Uploading...</span>`;
+
+      const result = await connectionManager.writeRemoteFile(activeFilename, code, connectionManager.remoteDir);
+      desktopBtnSaveCode.disabled = false;
+      if (result && result.success) {
+        desktopBtnSaveCode.innerHTML = `<span class="material-symbols-outlined text-xs">check</span><span>Saved &amp; Uploaded!</span>`;
+        if (desktopFileStatusBadge) {
+          desktopFileStatusBadge.innerText = result.cachedOnly ? 'Cached Locally' : 'Uploaded to Pi';
+          desktopFileStatusBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-emerald-950 border border-emerald-700 text-emerald-300';
+        }
+      } else {
+        desktopBtnSaveCode.innerHTML = `<span class="material-symbols-outlined text-xs">error</span><span>Upload Failed</span>`;
+      }
+      setTimeout(() => {
+        desktopBtnSaveCode.innerHTML = originalText;
+      }, 2500);
+    });
+  }
+
+  // Run Script directly on Pi from Editor
+  if (desktopBtnRunCode) {
+    desktopBtnRunCode.addEventListener('click', () => {
+      executeTerminalCommand(`python3 ${connectionManager.remoteDir}/${activeFilename}`);
+      if (desktopTerminalDrawer) {
+        desktopTerminalDrawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  }
+
+  // Reload Active File from Pi
+  if (desktopBtnReloadCode) {
+    desktopBtnReloadCode.addEventListener('click', () => {
+      loadRemoteFileIntoEditor(activeFilename);
+    });
+  }
+
+  // Sync Remote Files button
+  if (desktopBtnSyncRemote) {
+    desktopBtnSyncRemote.addEventListener('click', async () => {
+      const targetDir = desktopInputPiDir ? desktopInputPiDir.value : '~/intra_move';
+      desktopBtnSyncRemote.disabled = true;
+      desktopBtnSyncRemote.innerHTML = `<span class="material-symbols-outlined text-xs animate-spin">refresh</span><span>Syncing...</span>`;
+      await connectionManager.fetchRemoteFiles(targetDir);
+      desktopBtnSyncRemote.disabled = false;
+      desktopBtnSyncRemote.innerHTML = `<span class="material-symbols-outlined text-xs">sync</span><span>Sync Remote Files</span>`;
+      setupFileChipsListeners();
+    });
+  }
+
+  window.addEventListener('intramove_remote_files_synced', () => {
+    setupFileChipsListeners();
+  });
 
   if (desktopBtnScanLibs) {
     desktopBtnScanLibs.addEventListener('click', () => {
@@ -120,6 +493,11 @@ window.addEventListener('DOMContentLoaded', () => {
       connectionManager.clearLogs();
     });
   }
+
+  // Initialize Remote Files & Editor
+  connectionManager.renderRemoteFilesUI();
+  setupFileChipsListeners();
+  loadRemoteFileIntoEditor('amr_all_in_one.py');
 
   // Initial update
   connectionManager.updateAllUIs();
